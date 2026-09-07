@@ -1,0 +1,6 @@
+**
+!docker/
+!docker/Dockerfile
+!docker/entrypoint.sh
+!downloads/
+!downloads/*.run

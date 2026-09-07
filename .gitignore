@@ -1,0 +1,11 @@
+/build/
+/downloads/*
+!/downloads/.gitkeep
+/out/
+/vendor-src/
+/.cache/
+/.work/
+/cceprint/
+/npuchk/
+/stub_reg.log
+/test/

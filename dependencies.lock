@@ -1,0 +1,14 @@
+# Reproducibility metadata. scripts/fetch-cann.sh parses the CANN_* entries.
+CANN_VERSION=9.2.0-beta.2
+CANN_INSTALLER=Ascend-cann-toolkit_9.2.0-beta.2_linux-x86_64.run
+CANN_URL=https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%209.2.T3/Ascend-cann-toolkit_9.2.0-beta.2_linux-x86_64.run
+CANN_SHA256=701062cde2286c3ba1eccb8832fa4965911b36c59e0acdbba9c34c301d424ca3
+UBUNTU_IMAGE=ubuntu:24.04@sha256:33ceb71981b602c1a7443a53469e4dba065f7503eab3078a2d7a57a2ab987517
+
+# Research references used to validate APIs and workflows.
+ASC_DEVKIT_COMMIT=ec3460ef8eeb453312dcd5c5efaf0dca55885627
+ASC_TOOLS_COMMIT=839db8d6b1eb0f1bf70fdc12b4bb103578cb397d
+CANN_SAMPLES_COMMIT=96cac04981d9e464e2ba645a792940ee9afd3362
+MSOPPROF_COMMIT=f2677893a35e4ecc1484cd58e808390a9c28aca8
+MSSANITIZER_COMMIT=43c5e000badddbc7e9a0360d206446aef5a324bd
+MSINSIGHT_COMMIT=55b61a92acfdf08b5a13c476e10fe4fddb2df5d8
