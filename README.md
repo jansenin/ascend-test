@@ -61,6 +61,17 @@ development shell with:
 make shell
 ```
 
+On a Linux desktop, `docker-run.sh` automatically forwards an available X11
+or Wayland display. Require GUI forwarding and test it with:
+
+```bash
+make gui-shell
+xeyes
+```
+
+Use `./scripts/docker-run.sh --no-gui ...` to disable display access. See
+`docs/TOOLS.md` for authentication and remote-session details.
+
 Run `./scripts/check-environment.sh` inside the container to show installed
 compiler and analysis tools. More workflows are documented in `docs/TOOLS.md`.
 

@@ -13,6 +13,37 @@ or concurrency model.
 
 GDB is configured to follow the child process created for the emulated kernel.
 
+## Desktop GUI applications
+
+On Linux, `docker-run.sh` automatically forwards the active X11 socket and
+Xauthority file, the active Wayland socket, or both. Common X11, Wayland, GTK,
+OpenGL, and audio client libraries are installed in the image.
+
+```bash
+./scripts/docker-run.sh --gui bash
+xeyes
+```
+
+`--gui` fails if no usable host display is detected. Automatic mode keeps
+headless commands working when no display exists; `--no-gui` explicitly
+disables display forwarding. The container runs with the invoking user's UID
+and GID rather than as root.
+
+X11 normally works without `xhost` because the host's readable Xauthority file
+is mounted read-only. If the desktop does not expose one, authorize only the
+local user before starting the container and revoke it afterward:
+
+```bash
+xhost +SI:localuser:"$(id -un)"
+./scripts/docker-run.sh --gui bash
+xhost -SI:localuser:"$(id -un)"
+```
+
+For SSH sessions, connect to the Docker host with `ssh -X` or `ssh -Y` first.
+Docker Desktop on macOS or Windows additionally requires a host X server;
+native Wayland forwarding is Linux-only. GUI access exposes the display server
+to processes in the container, so use `--no-gui` for untrusted programs.
+
 ## Simulator and traces
 
 ```bash

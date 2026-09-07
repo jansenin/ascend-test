@@ -1,10 +1,13 @@
-.PHONY: image shell cpu-2201 cpu-3510 sim-2201 sim-3510 test-cpu-2201 test-cpu-3510
+.PHONY: image shell gui-shell cpu-2201 cpu-3510 sim-2201 sim-3510 test-cpu-2201 test-cpu-3510
 
 image:
 	./scripts/docker-build.sh --accept-eula
 
 shell:
 	./scripts/docker-run.sh bash
+
+gui-shell:
+	./scripts/docker-run.sh --gui bash
 
 cpu-2201:
 	./scripts/docker-run.sh ./scripts/build.sh cpu dav-2201

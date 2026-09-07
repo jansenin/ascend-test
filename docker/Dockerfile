@@ -15,7 +15,9 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        bash build-essential ca-certificates ccache cmake curl gdb git ninja-build python3 python3-pip python3-venv unzip && \
+        bash build-essential ca-certificates ccache cmake curl dbus-x11 gdb git libasound2t64 libegl1 libgl1 \
+        libgtk-3-0 libnss3 libwayland-client0 libx11-6 libxext6 libxfixes3 libxi6 libxkbcommon-x11-0 \
+        libxrandr2 libxrender1 libxtst6 ninja-build python3 python3-pip python3-venv unzip x11-apps xauth && \
     rm -rf /var/lib/apt/lists/*
 
 COPY downloads/${CANN_INSTALLER} /tmp/cann.run
@@ -29,7 +31,8 @@ RUN test "${ACCEPT_CANN_EULA}" = "yes" || \
     test -f /usr/local/Ascend/cann/set_env.sh
 
 COPY docker/entrypoint.sh /usr/local/bin/ascendc-entrypoint
-RUN chmod 0555 /usr/local/bin/ascendc-entrypoint
+RUN chmod 0555 /usr/local/bin/ascendc-entrypoint && \
+    install -d -m 1777 /tmp/ascendc-runtime
 
 WORKDIR /workspace
 ENTRYPOINT ["/usr/local/bin/ascendc-entrypoint"]
