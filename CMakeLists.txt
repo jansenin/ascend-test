@@ -48,7 +48,8 @@ if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
     # Low-level SIMD kernels (RegBase arithmetic + vgather/vscatter basic API).
     foreach(target IN ITEMS arith_simd gather_simd scatter_simd
                            chained_gather_simd chained_gather_simd_pipe
-                           arith_simd_half gather_simd_half scatter_simd_half)
+                           arith_simd_half gather_simd_half scatter_simd_half
+                           branch_simd)
         add_executable(${target} apps/${target}.asc)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
         target_compile_options(${target} PRIVATE
@@ -64,7 +65,8 @@ if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
     if(NOT CMAKE_ASC_RUN_MODE STREQUAL "cpu")
         foreach(target IN ITEMS simt_add arith_simt gather_simt scatter_simt
                                chained_gather_simt
-                               arith_simt_half gather_simt_half scatter_simt_half)
+                               arith_simt_half gather_simt_half scatter_simt_half
+                               branch_simt)
             add_executable(${target} apps/${target}.asc)
             target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
             target_compile_options(${target} PRIVATE
@@ -92,6 +94,7 @@ if(BUILD_TESTING)
         add_test(NAME arith_simd_half COMMAND arith_simd_half)
         add_test(NAME gather_simd_half COMMAND gather_simd_half)
         add_test(NAME scatter_simd_half COMMAND scatter_simd_half)
+        add_test(NAME branch_simd COMMAND branch_simd)
         if(NOT CMAKE_ASC_RUN_MODE STREQUAL "cpu")
             add_test(NAME simt_add COMMAND simt_add)
             add_test(NAME arith_simt COMMAND arith_simt)
@@ -101,6 +104,7 @@ if(BUILD_TESTING)
             add_test(NAME arith_simt_half COMMAND arith_simt_half)
             add_test(NAME gather_simt_half COMMAND gather_simt_half)
             add_test(NAME scatter_simt_half COMMAND scatter_simt_half)
+            add_test(NAME branch_simt COMMAND branch_simt)
         endif()
     endif()
 endif()
