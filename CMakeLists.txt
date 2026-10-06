@@ -48,8 +48,8 @@ if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
     # Low-level SIMD kernels (RegBase arithmetic + vgather/vscatter basic API).
     foreach(target IN ITEMS arith_simd gather_simd scatter_simd
                            chained_gather_simd chained_gather_simd_pipe
-                           arith_simd_half gather_simd_half scatter_simd_half
-                           branch_simd)
+                            arith_simd_half gather_simd_half scatter_simd_half
+                            branch_simd branch_simd_compact)
         add_executable(${target} apps/${target}.asc)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
         target_compile_options(${target} PRIVATE
@@ -95,6 +95,7 @@ if(BUILD_TESTING)
         add_test(NAME gather_simd_half COMMAND gather_simd_half)
         add_test(NAME scatter_simd_half COMMAND scatter_simd_half)
         add_test(NAME branch_simd COMMAND branch_simd)
+        add_test(NAME branch_simd_compact COMMAND branch_simd_compact)
         if(NOT CMAKE_ASC_RUN_MODE STREQUAL "cpu")
             add_test(NAME simt_add COMMAND simt_add)
             add_test(NAME arith_simt COMMAND arith_simt)
