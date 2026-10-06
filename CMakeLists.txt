@@ -41,15 +41,36 @@ foreach(target IN ITEMS vector_add direct_mmad add_mmad_add)
     endif()
 endforeach()
 
-# SIMT (CUDA-like) is only available on dav-3510 (Ascend 950) and has no CPU twin-debug mode.
+# SIMT (CUDA-like), RegBase vector arithmetic, and the low-level SIMD
+# gather/scatter basic API are only available on dav-3510 (Ascend 950).
+# RegBase has no dav-2201 equivalent, and SIMT has no CPU twin-debug mode.
 if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
-    add_executable(simt_add apps/simt_add.asc)
-    target_compile_options(simt_add PRIVATE
-        $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=${CMAKE_ASC_ARCHITECTURES}>
-        $<$<COMPILE_LANGUAGE:ASC>:--enable-simt>
-    )
-    if(ASCENDC_DEBUG_INFO)
-        target_compile_options(simt_add PRIVATE $<$<COMPILE_LANGUAGE:ASC>:-g>)
+    # Low-level SIMD kernels (RegBase arithmetic + vgather/vscatter basic API).
+    foreach(target IN ITEMS arith_simd gather_simd scatter_simd)
+        add_executable(${target} apps/${target}.asc)
+        target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+        target_compile_options(${target} PRIVATE
+            $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=${CMAKE_ASC_ARCHITECTURES}>
+        )
+        if(ASCENDC_DEBUG_INFO)
+            target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:ASC>:-g>)
+        endif()
+    endforeach()
+
+    # SIMT kernels. --enable-simt is incompatible with --run-mode=cpu, so they
+    # are only built for sim/npu run modes.
+    if(NOT CMAKE_ASC_RUN_MODE STREQUAL "cpu")
+        foreach(target IN ITEMS simt_add arith_simt gather_simt scatter_simt)
+            add_executable(${target} apps/${target}.asc)
+            target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+            target_compile_options(${target} PRIVATE
+                $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=${CMAKE_ASC_ARCHITECTURES}>
+                $<$<COMPILE_LANGUAGE:ASC>:--enable-simt>
+            )
+            if(ASCENDC_DEBUG_INFO)
+                target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:ASC>:-g>)
+            endif()
+        endforeach()
     endif()
 endif()
 
@@ -59,6 +80,14 @@ if(BUILD_TESTING)
     add_test(NAME direct_mmad COMMAND direct_mmad)
     add_test(NAME add_mmad_add COMMAND add_mmad_add)
     if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
-        add_test(NAME simt_add COMMAND simt_add)
+        add_test(NAME arith_simd COMMAND arith_simd)
+        add_test(NAME gather_simd COMMAND gather_simd)
+        add_test(NAME scatter_simd COMMAND scatter_simd)
+        if(NOT CMAKE_ASC_RUN_MODE STREQUAL "cpu")
+            add_test(NAME simt_add COMMAND simt_add)
+            add_test(NAME arith_simt COMMAND arith_simt)
+            add_test(NAME gather_simt COMMAND gather_simt)
+            add_test(NAME scatter_simt COMMAND scatter_simt)
+        endif()
     endif()
 endif()
