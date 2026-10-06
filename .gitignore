@@ -9,3 +9,6 @@
 /npuchk/
 /stub_reg.log
 /test/
+/core*.dump
+/profile_*.toml
+/*.s

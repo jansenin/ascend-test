@@ -5,7 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 arch="${1:-}"
 target="${2:-add_mmad_add}"
 if [[ ! "${arch}" =~ ^(dav-2201|dav-3510)$ ]]; then
-    printf 'Usage: %s {dav-2201|dav-3510} [vector_add|direct_mmad|add_mmad_add]\n' "$0" >&2
+    printf 'Usage: %s {dav-2201|dav-3510} [vector_add|direct_mmad|add_mmad_add|simt_add]\n' "$0" >&2
     exit 2
 fi
 

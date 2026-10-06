@@ -83,6 +83,53 @@ currently document `bisheng -S` or generic `llvm-objdump -d` as a stable AI
 Core disassembly workflow. The simulator's `*_instr_exe.csv` is the supported
 instruction view.
 
+## Inspecting actual NPU instructions (SIMD vs SIMT)
+
+The device ELF is `elf64-hiipu`; the public BiSheng `llvm-objdump` registers a
+`hiipu64` target but its ISA decoder is not shipped, so `-d` prints
+`<not available>`. Use these supported views instead.
+
+The two views describe the **same** instruction stream:
+
+- The `.cce` "CCE print" files are the real device instructions, not a model.
+  Their mnemonics match the simulator trace one-to-one (`vadd` = `RV_VADD`,
+  `vlds` = `RV_VLDI`, `vsts` = `RV_VSTI`, `mad` = the MMAD, `copy_gm_to_ubuf_*`
+  = `MOV_SRC_TO_DST_ALIGNv2`). `.cce` is emitted at **runtime** by
+  `libcpudebug_cceprint.so` when a SIMD kernel runs under CPU twin-debug
+  (which SIMT lacks), so there is no standalone compile-time `.cce` dump:
+  the `--cce-enable-print` compiler flag does not write a file by itself.
+
+```bash
+./scripts/docker-run.sh ./scripts/test.sh cpu dav-3510
+ls build/cpu-3510/cceprint/          # *_<block>_<core>_vec.cce / _cub.cce
+```
+
+- The CA-model simulator emits per-core ASCII instruction traces
+  (`core*.veccore*.instr_log.dump`) into the current directory when a `sim`
+  executable runs directly. This works for **both** SIMD and SIMT, so it is
+  the single source for a like-for-like comparison:
+
+```bash
+./scripts/docker-run.sh ./scripts/build.sh sim dav-3510
+./scripts/docker-run.sh bash -lc 'cd /workspace && build/sim-3510/vector_add'
+./scripts/docker-run.sh bash -lc 'cd /workspace && build/sim-3510/simt_add'
+ls core*.veccore*.instr_log.dump     # ASCII instruction trace (gitignored)
+```
+
+SIMD and SIMT are distinct instruction sets, not just programming models:
+
+| Aspect | SIMD (`__vector__`) | SIMT (`__global__`, `--enable-simt`) |
+|---|---|---|
+| Compute | `RV_VADD` / `vadd` | `SIMT_FADD` |
+| Load | `RV_VLDI` / `vlds`, DMA `MOV_SRC_TO_DST_ALIGNv2` | `SIMT_LDG` (per warp) |
+| Store | `RV_VSTI` / `vsts` | `SIMT_STG` (per warp) |
+| Granularity | one 128-wide vector register per instr | one thread element, explicit `warpId`/`schId` |
+| Address math | DMA descriptors | ~200 `SIMT_IADD`/`SIMT_IMUL`/`SIMT_LEA`/`SIMT_ISETP`/`SIMT_SEL` |
+| Code size (8192-elem add) | `.text` 0x114 (276 B) | `.text` 0x428 (1064 B) |
+
+`simt_add` is `dav-3510`-only and has no CPU twin-debug mode; inspect it via
+the simulator trace dumps above.
+
 ## NPU-only tools
 
 Build sanitizer instrumentation without `-O0`:

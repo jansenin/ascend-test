@@ -41,9 +41,24 @@ foreach(target IN ITEMS vector_add direct_mmad add_mmad_add)
     endif()
 endforeach()
 
+# SIMT (CUDA-like) is only available on dav-3510 (Ascend 950) and has no CPU twin-debug mode.
+if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
+    add_executable(simt_add apps/simt_add.asc)
+    target_compile_options(simt_add PRIVATE
+        $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=${CMAKE_ASC_ARCHITECTURES}>
+        $<$<COMPILE_LANGUAGE:ASC>:--enable-simt>
+    )
+    if(ASCENDC_DEBUG_INFO)
+        target_compile_options(simt_add PRIVATE $<$<COMPILE_LANGUAGE:ASC>:-g>)
+    endif()
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
     add_test(NAME vector_add COMMAND vector_add)
     add_test(NAME direct_mmad COMMAND direct_mmad)
     add_test(NAME add_mmad_add COMMAND add_mmad_add)
+    if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
+        add_test(NAME simt_add COMMAND simt_add)
+    endif()
 endif()
