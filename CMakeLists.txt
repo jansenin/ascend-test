@@ -47,6 +47,7 @@ endforeach()
 if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
     # Low-level SIMD kernels (RegBase arithmetic + vgather/vscatter basic API).
     foreach(target IN ITEMS arith_simd gather_simd scatter_simd
+                           chained_gather_simd chained_gather_simd_pipe
                            arith_simd_half gather_simd_half scatter_simd_half)
         add_executable(${target} apps/${target}.asc)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -62,6 +63,7 @@ if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
     # are only built for sim/npu run modes.
     if(NOT CMAKE_ASC_RUN_MODE STREQUAL "cpu")
         foreach(target IN ITEMS simt_add arith_simt gather_simt scatter_simt
+                               chained_gather_simt
                                arith_simt_half gather_simt_half scatter_simt_half)
             add_executable(${target} apps/${target}.asc)
             target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -85,6 +87,8 @@ if(BUILD_TESTING)
         add_test(NAME arith_simd COMMAND arith_simd)
         add_test(NAME gather_simd COMMAND gather_simd)
         add_test(NAME scatter_simd COMMAND scatter_simd)
+        add_test(NAME chained_gather_simd COMMAND chained_gather_simd random)
+        add_test(NAME chained_gather_simd_pipe COMMAND chained_gather_simd_pipe random)
         add_test(NAME arith_simd_half COMMAND arith_simd_half)
         add_test(NAME gather_simd_half COMMAND gather_simd_half)
         add_test(NAME scatter_simd_half COMMAND scatter_simd_half)
@@ -93,6 +97,7 @@ if(BUILD_TESTING)
             add_test(NAME arith_simt COMMAND arith_simt)
             add_test(NAME gather_simt COMMAND gather_simt)
             add_test(NAME scatter_simt COMMAND scatter_simt)
+            add_test(NAME chained_gather_simt COMMAND chained_gather_simt random)
             add_test(NAME arith_simt_half COMMAND arith_simt_half)
             add_test(NAME gather_simt_half COMMAND gather_simt_half)
             add_test(NAME scatter_simt_half COMMAND scatter_simt_half)

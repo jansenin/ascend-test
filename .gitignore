@@ -12,3 +12,5 @@
 /core*.dump
 /profile_*.toml
 /*.s
+*.swp
+*.swo
