@@ -46,7 +46,8 @@ endforeach()
 # RegBase has no dav-2201 equivalent, and SIMT has no CPU twin-debug mode.
 if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
     # Low-level SIMD kernels (RegBase arithmetic + vgather/vscatter basic API).
-    foreach(target IN ITEMS arith_simd gather_simd scatter_simd)
+    foreach(target IN ITEMS arith_simd gather_simd scatter_simd
+                           arith_simd_half gather_simd_half scatter_simd_half)
         add_executable(${target} apps/${target}.asc)
         target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
         target_compile_options(${target} PRIVATE
@@ -60,7 +61,8 @@ if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
     # SIMT kernels. --enable-simt is incompatible with --run-mode=cpu, so they
     # are only built for sim/npu run modes.
     if(NOT CMAKE_ASC_RUN_MODE STREQUAL "cpu")
-        foreach(target IN ITEMS simt_add arith_simt gather_simt scatter_simt)
+        foreach(target IN ITEMS simt_add arith_simt gather_simt scatter_simt
+                               arith_simt_half gather_simt_half scatter_simt_half)
             add_executable(${target} apps/${target}.asc)
             target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
             target_compile_options(${target} PRIVATE
@@ -83,11 +85,17 @@ if(BUILD_TESTING)
         add_test(NAME arith_simd COMMAND arith_simd)
         add_test(NAME gather_simd COMMAND gather_simd)
         add_test(NAME scatter_simd COMMAND scatter_simd)
+        add_test(NAME arith_simd_half COMMAND arith_simd_half)
+        add_test(NAME gather_simd_half COMMAND gather_simd_half)
+        add_test(NAME scatter_simd_half COMMAND scatter_simd_half)
         if(NOT CMAKE_ASC_RUN_MODE STREQUAL "cpu")
             add_test(NAME simt_add COMMAND simt_add)
             add_test(NAME arith_simt COMMAND arith_simt)
             add_test(NAME gather_simt COMMAND gather_simt)
             add_test(NAME scatter_simt COMMAND scatter_simt)
+            add_test(NAME arith_simt_half COMMAND arith_simt_half)
+            add_test(NAME gather_simt_half COMMAND gather_simt_half)
+            add_test(NAME scatter_simt_half COMMAND scatter_simt_half)
         endif()
     endif()
 endif()

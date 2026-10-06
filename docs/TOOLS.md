@@ -123,12 +123,22 @@ SIMD and SIMT are distinct instruction sets, not just programming models:
 | Compute | `RV_VADD` / `vadd` | `SIMT_FADD` |
 | Load | `RV_VLDI` / `vlds`, DMA `MOV_SRC_TO_DST_ALIGNv2` | `SIMT_LDG` (per warp) |
 | Store | `RV_VSTI` / `vsts` | `SIMT_STG` (per warp) |
-| Granularity | one 128-wide vector register per instr | one thread element, explicit `warpId`/`schId` |
+| Granularity | one 256-byte vector register per instr (64 fp32 / 128 fp16) | 32-wide warp (32 fp32 lanes), explicit `warpId`/`schId` |
 | Address math | DMA descriptors | ~200 `SIMT_IADD`/`SIMT_IMUL`/`SIMT_LEA`/`SIMT_ISETP`/`SIMT_SEL` |
 | Code size (8192-elem add) | `.text` 0x114 (276 B) | `.text` 0x428 (1064 B) |
 
 `simt_add` is `dav-3510`-only and has no CPU twin-debug mode; inspect it via
 the simulator trace dumps above.
+
+**SIMT is not profiled by `msprof op simulator`.** Running `simulate.sh` on a
+SIMT target (`simt_add`, `arith_simt`, `gather_simt`, `scatter_simt`) finishes
+with the kernel printing `PASS` but the profiler reports "Profiling results are
+empty" and emits no `trace.json`/`visualize_data.bin`. SIMT instruction-level
+metrics (`PipeTimeline`, `WarpTimeline`, `Occupancy`) are an on-board `msopprof`
+feature that requires real NPU hardware. In the hardware-free simulator the
+only SIMT trace is the ASCII `core*.veccore*.instr_log.dump` produced by a
+direct run, which MindStudio Insight cannot open (only `trace.json` and
+`visualize_data.bin` are Insight inputs).
 
 ## NPU-only tools
 
