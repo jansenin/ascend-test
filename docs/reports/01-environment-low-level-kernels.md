@@ -40,9 +40,13 @@ expressible and runnable.
 All **12** configurations pass: `{cpu, sim} × {dav-2201, dav-3510} ×
 {vector_add, direct_mmad, add_mmad_add}`.
 
-Simulator `Total tick` (CA-model cycle count, lower is better; the MMAD/fused
-kernels are heavier on 950 because its AIV is RegBase and the fused MIX kernel
-syncs AIV↔AIC):
+Simulator `Total tick` (CA-model cycle count, lower is better). **Tick is not
+comparable across architectures**: `Ascend910B1` (dav-2201) and
+`Ascend950PR_9599` (dav-3510) are different simulator models with their own
+cycle accounting and clock scaling, so the two columns confirm each kernel
+*runs* on each SoC but must not be compared left-to-right (a higher 3510 tick
+does not mean 950 is slower — `vector_add` shows the same ~1.8x even though it
+has no MMAD and no AIV↔AIC sync):
 
 | kernel | dav-2201 tick | dav-3510 tick |
 |---|---:|---:|

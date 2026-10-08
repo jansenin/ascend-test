@@ -87,6 +87,13 @@ and written as terse, self-contained notes.
 - **"Total tick" is a simulator model metric, not wall time or real hardware.**
   Use it for relative A/B within the same simulator config, not absolute
   throughput.
+- **"Total tick" is not comparable across architectures.** `Ascend910B1`
+  (dav-2201) and `Ascend950PR_9599` (dav-3510) are different CA-models with
+  their own cycle accounting/clock scaling, so a higher tick on 3510 does not
+  mean 950 is slower. Only compare tick within one SoC model. (We almost wrote
+  a "950 is heavier because RegBase/MIX-sync" explanation for a cross-arch tick
+  gap that also showed up in a plain `vector_add` — the gap is the model, not
+  the microarchitecture.)
 - **Single-pass benchmarks are dominated by launch/prologue overhead.** Fitting
   `T(k) = F + k·W` over a `kRepeats ∈ {1,2,4,8,16}` sweep separates fixed cost
   F from per-pass work W. Example: chained gather "SIMD wins 13%" at k=1 was
