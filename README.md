@@ -12,6 +12,12 @@ The lab contains three checked executables:
 
 See `docs/ARCHITECTURE.md` for exact memory paths and synchronization.
 
+Documentation lives in `docs/`:
+- `docs/ARCHITECTURE.md`, `docs/TOOLS.md` — how the kernels and toolchain work.
+- `docs/LESSONS.md` — accumulated API gotchas, mistakes, and corrected claims.
+- `docs/reports/` — one report per experiment (index at `docs/reports/README.md`).
+- `AGENTS.md` — repo-maintenance conventions for future agents.
+
 ## Fresh clone
 
 Requirements are Docker on an x86_64 Linux machine and enough disk space for
