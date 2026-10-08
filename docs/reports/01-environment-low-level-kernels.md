@@ -40,6 +40,16 @@ expressible and runnable.
 All **12** configurations pass: `{cpu, sim} × {dav-2201, dav-3510} ×
 {vector_add, direct_mmad, add_mmad_add}`.
 
+Simulator `Total tick` (CA-model cycle count, lower is better; the MMAD/fused
+kernels are heavier on 950 because its AIV is RegBase and the fused MIX kernel
+syncs AIV↔AIC):
+
+| kernel | dav-2201 tick | dav-3510 tick |
+|---|---:|---:|
+| `vector_add` | 2807 | 5005 |
+| `direct_mmad` | 3898 | 6920 |
+| `add_mmad_add` | 7728 | 16713 |
+
 The environment provides `ASCEND_HOME_PATH`, `bisheng`, `msobjdump`, `msprof`,
 `mssanitizer`, and simulator directories for `dav_2201`, `dav_3510`,
 `Ascend910B1`, and `Ascend950PR_9599`.
@@ -75,7 +85,17 @@ The environment provides `ASCEND_HOME_PATH`, `bisheng`, `msobjdump`, `msprof`,
 #   direct_mmad ... PASS
 #   add_mmad_add ... PASS
 
-# 6. Inspect the generated device ELF for one kernel.
+# 6. Timing (run each kernel directly; "Total tick" is the CA-model cycle count).
+./scripts/docker-run.sh bash -lc 'cd /workspace && for k in vector_add direct_mmad add_mmad_add; do ./build/sim-2201/$k; done'
+#   vector_add:    Total tick: 2807
+#   direct_mmad:   Total tick: 3898
+#   add_mmad_add:  Total tick: 7728
+./scripts/docker-run.sh bash -lc 'cd /workspace && for k in vector_add direct_mmad add_mmad_add; do ./build/sim-3510/$k; done'
+#   vector_add:    Total tick: 5005
+#   direct_mmad:   Total tick: 6920
+#   add_mmad_add:  Total tick: 16713
+
+# 7. Inspect the generated device ELF for one kernel.
 ./scripts/docker-run.sh ./scripts/extract-elf.sh vector_add
 #   out/device-elf/vector_add/vector_add.aicore.o  (elf64-hiipu)
 ```
