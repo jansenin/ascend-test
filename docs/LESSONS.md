@@ -94,13 +94,20 @@ and written as terse, self-contained notes.
   a "950 is heavier because RegBase/MIX-sync" explanation for a cross-arch tick
   gap that also showed up in a plain `vector_add` — the gap is the model, not
   the microarchitecture.)
-- **The cross-arch tick gap is NOT clock frequency.** A direct sim run prints
+- **The cross-arch tick gap is NOT clock frequency — it is higher modeled
+  memory/DMA latency.** A direct sim run prints
   `[INFO] Chip 0 AIC / Scheduler / Soc periods: 200.0000 / 200.0000 / 105.0000`
-  and that line is *identical* for both `dav-2201` and `dav-3510` — the two
-  CA-models share the same clock periods, so frequency explains none of the
-  ~1.8x tick gap. "Total tick" is a cycle count (frequency only maps cycles to
-  wall time, it does not change the count); the gap is purely the two models'
-  different instruction-latency/pipeline cycle accounting. There is no
+  and that line is *identical* for both `dav-2201` and `dav-3510`; the
+  per-instruction `instr_exe.csv` also shows the same ~1.8 GHz (2201 `BAR`
+  1575 cyc / 0.85 µs vs 3510 `SET_FLAG` 2709 cyc / 1.51 µs). But the DMA
+  instructions cost ~3x more cycles on 3510: `vector_add` GM→UB reads are
+  575+943 cyc (2201) vs 1972+2539 cyc (3510), UB→GM write 491 vs 801 — at the
+  same clock, so the 950 model simply has higher memory/DMA latency. Secondary
+  factor: the 3510 RegBase add stages through registers (`RV_VLDI`/`RV_VADD`/
+  `RV_VSTI` ≈ 2592 cyc) vs 2201's single MemBase `VADD` (156 cyc). Also note
+  msprof "Total tick" is a poor cross-arch comparator: it includes ~3000 cyc of
+  near-identical model init/teardown, so it showed 1.08x while the real kernel
+  latency (last instruction cycle 1575 vs 2709) is 1.72x. There is no
   readable device-characteristics file with the frequency: `libPowerModel.so`
   only embeds field *names* (`aicFreq`/`aivFreq`/`socFreq`/...); the values are
   compiled into the binaries, and `ascend_system_advisor/asys/common/device.py`
