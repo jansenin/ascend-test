@@ -89,11 +89,22 @@ and written as terse, self-contained notes.
   throughput.
 - **"Total tick" is not comparable across architectures.** `Ascend910B1`
   (dav-2201) and `Ascend950PR_9599` (dav-3510) are different CA-models with
-  their own cycle accounting/clock scaling, so a higher tick on 3510 does not
+  their own cycle accounting, so a higher tick on 3510 does not
   mean 950 is slower. Only compare tick within one SoC model. (We almost wrote
   a "950 is heavier because RegBase/MIX-sync" explanation for a cross-arch tick
   gap that also showed up in a plain `vector_add` — the gap is the model, not
   the microarchitecture.)
+- **The cross-arch tick gap is NOT clock frequency.** A direct sim run prints
+  `[INFO] Chip 0 AIC / Scheduler / Soc periods: 200.0000 / 200.0000 / 105.0000`
+  and that line is *identical* for both `dav-2201` and `dav-3510` — the two
+  CA-models share the same clock periods, so frequency explains none of the
+  ~1.8x tick gap. "Total tick" is a cycle count (frequency only maps cycles to
+  wall time, it does not change the count); the gap is purely the two models'
+  different instruction-latency/pipeline cycle accounting. There is no
+  readable device-characteristics file with the frequency: `libPowerModel.so`
+  only embeds field *names* (`aicFreq`/`aivFreq`/`socFreq`/...); the values are
+  compiled into the binaries, and `ascend_system_advisor/asys/common/device.py`
+  reads frequency from live hardware via DSMI (not the simulator).
 - **Single-pass benchmarks are dominated by launch/prologue overhead.** Fitting
   `T(k) = F + k·W` over a `kRepeats ∈ {1,2,4,8,16}` sweep separates fixed cost
   F from per-pass work W. Example: chained gather "SIMD wins 13%" at k=1 was
