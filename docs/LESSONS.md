@@ -98,20 +98,27 @@ and written as terse, self-contained notes.
   memory/DMA latency.** A direct sim run prints
   `[INFO] Chip 0 AIC / Scheduler / Soc periods: 200.0000 / 200.0000 / 105.0000`
   and that line is *identical* for both `dav-2201` and `dav-3510`; the
-  per-instruction `instr_exe.csv` also shows the same ~1.8 GHz (2201 `BAR`
-  1575 cyc / 0.85 µs vs 3510 `SET_FLAG` 2709 cyc / 1.51 µs). But the DMA
-  instructions cost ~3x more cycles on 3510: `vector_add` GM→UB reads are
-  575+943 cyc (2201) vs 1972+2539 cyc (3510), UB→GM write 491 vs 801 — at the
-  same clock, so the 950 model simply has higher memory/DMA latency. Secondary
-  factor: the 3510 RegBase add stages through registers (`RV_VLDI`/`RV_VADD`/
-  `RV_VSTI` ≈ 2592 cyc) vs 2201's single MemBase `VADD` (156 cyc). Also note
-  msprof "Total tick" is a poor cross-arch comparator: it includes ~3000 cyc of
-  near-identical model init/teardown, so it showed 1.08x while the real kernel
-  latency (last instruction cycle 1575 vs 2709) is 1.72x. There is no
-  readable device-characteristics file with the frequency: `libPowerModel.so`
-  only embeds field *names* (`aicFreq`/`aivFreq`/`socFreq`/...); the values are
-  compiled into the binaries, and `ascend_system_advisor/asys/common/device.py`
-  reads frequency from live hardware via DSMI (not the simulator).
+  per-instruction `instr_exe.csv` also shows the same ~1.8 GHz. `vector_add` is
+  ~95% data movement: on 3510 the DMA is GM→UB reads spanning ~1.4 µs + UB→GM
+  write ~0.45 µs, while the entire RegBase compute is a single `VF` block of
+  ~96 ns (~170 cyc) — the same order as 2201's MemBase `VADD` (156 cyc), so the
+  RegBase register staging (`RV_VLDI`/`RV_VADD`/`RV_VSTI`) adds no meaningful
+  compute time. The 950 model simply models higher memory/DMA latency (total
+  span 1.99 µs vs 2201's 0.86 µs ≈ 2.3x). Also note msprof "Total tick" is a
+  poor cross-arch comparator: it includes ~3000 cyc of near-identical model
+  init/teardown, so it showed 1.08x while the real kernel latency is 1.72x.
+  There is no readable device-characteristics file with the frequency:
+  `libPowerModel.so` only embeds field *names* (`aicFreq`/`aivFreq`/`socFreq`/
+  ...); the values are compiled into the binaries, and
+  `ascend_system_advisor/asys/common/device.py` reads frequency from live
+  hardware via DSMI (not the simulator).
+- **Measure spans, not summed per-call cycles.** In `instr_exe.csv`/`trace.json`
+  the `cycles` column for a `call_count=N` loop instruction (e.g. `RV_VLDI`
+  call_count=64) is the SUM of all N iterations' latencies; the vector pipe
+  pipelines them, so summing over-counts hugely (we said "RegBase add ≈ 2592
+  cyc" when the real `VF` span is ~96 ns ≈ 170 cyc — ~15x off). Take the FIRST
+  occurrence → LAST occurrence span of the instruction group instead, or use the
+  enclosing `VF` block in the trace.
 - **Single-pass benchmarks are dominated by launch/prologue overhead.** Fitting
   `T(k) = F + k·W` over a `kRepeats ∈ {1,2,4,8,16}` sweep separates fixed cost
   F from per-pass work W. Example: chained gather "SIMD wins 13%" at k=1 was
