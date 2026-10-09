@@ -21,6 +21,11 @@ SIMT, MMAD, gather/scatter, synchronization) and measure it empirically.
    unintuitive, if an assumption turned out wrong, if a claim was later
    corrected (e.g. "SIMT wins" that was really launch overhead) — write it down
    so future agents and the owner don't repeat it.
+6. **Write investigations/discoveries down, not just experiments.** When an
+   anomaly is investigated and explained (or a claim is made/disproved), capture
+   the reasoning + conclusion in `docs/reports/NN-<slug>.md` (or `docs/LESSONS.md`
+   for a one-line gotcha). Don't leave a "needs investigation" finding floating
+   in chat only.
 4. **Never re-use a CMake build dir across run modes or architectures.**
    `CMAKE_ASC_RUN_MODE` (cpu|sim|npu) and `CMAKE_ASC_ARCHITECTURES`
    (dav-2201|dav-3510) are cached; use a fresh `build/{mode}-{2201|3510}` each
@@ -37,6 +42,10 @@ SIMT, MMAD, gather/scatter, synchronization) and measure it empirically.
 - **Flag suspicious requests.** If something seems strange, or you suspect the
   owner probably wanted something else, ask before doing it.
 - Prefer a short analysis + question over a long detour in the wrong direction.
+- **Parallel tasks.** The owner often drops several tasks/questions at once and
+  that does NOT mean "abort what you're doing." Fold the new items into the
+  current task list, re-prioritize, and continue the in-flight work; act on the
+  new items in priority order rather than switching mid-task.
 
 ## Workflow (every command through the Docker image)
 
