@@ -14,6 +14,7 @@ See `docs/ARCHITECTURE.md` for exact memory paths and synchronization.
 
 Documentation lives in `docs/`:
 - `docs/ARCHITECTURE.md`, `docs/TOOLS.md` — how the kernels and toolchain work.
+- `docs/REFERENCE.md` — quick-reference: buffer sizes, MMAD/cube constants, tools, workflows.
 - `docs/LESSONS.md` — accumulated API gotchas, mistakes, and corrected claims.
 - `docs/reports/` — one report per experiment (index at `docs/reports/README.md`).
 - `AGENTS.md` — repo-maintenance conventions for future agents.

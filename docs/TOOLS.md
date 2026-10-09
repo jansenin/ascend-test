@@ -140,6 +140,54 @@ only SIMT trace is the ASCII `core*.veccore*.instr_log.dump` produced by a
 direct run, which MindStudio Insight cannot open (only `trace.json` and
 `visualize_data.bin` are Insight inputs).
 
+## MindStudio Insight (trace viewer)
+
+Insight is the richer viewer for `trace.json` and `visualize_data.bin` (source
+correlation, timeline, memory views). Run it as a container with this repo's
+`out/` tree mounted as its data directory:
+
+```bash
+docker run -d --name msinsight -p 9880:80 \
+  -v /home/jansenin/stuff/work/npu/out:/opt/insight/data \
+  swr.cn-south-1.myhuaweicloud.com/ascendhub/msinsight:26.1.0-ubuntu22.04-py3.10
+# web UI at http://localhost:9880 (a 302 to ?proxy=true on "/" is normal)
+```
+
+### Importing traces from the command line
+
+The web UI's Import Data dialog can be bypassed. Insight's backend
+(`profiler_server`) is a WebSocket server that takes a `import/action` message;
+`scripts/insight-import.py` drives it, so a trace can be loaded with one command:
+
+```bash
+# import a simulator trace (accepts the simulator/ dir or visualize_data.bin):
+./scripts/insight-import.py \
+  out/simulator/3510/cube_peak-64x64x64-half-<ts>/OPPROF_<ts>_<id>/simulator/ \
+  --project cube_peak
+# => importing /opt/insight/data/simulator/3510/.../visualize_data.bin as project 'cube_peak'
+# => parse success
+# => OK: imported 'cube_peak'
+```
+
+The script maps `out/...` to the container's `/opt/insight/data/...` mount
+automatically (or pass a full `/opt/insight/data/...` path verbatim). Give the
+same `--project` across several imports to group traces into one project for
+the comparison view.
+
+**Single-client limitation.** `profiler_server` accepts exactly one WebSocket
+client at a time. If the Insight browser tab is open it holds that connection,
+and a second connection is rejected ("server is already connected"). The import
+itself is *persistent* (it writes a `visualize_data_*_mindstudio_insight_data.db`
+next to the `.bin` plus project metadata to the backend's `system_memory.db`),
+so the workflow is: close the browser tab → run the import script(s) → reopen
+the tab and view the project in Data Manager. The container keeps running the
+whole time; you only need the tab closed *while* the script imports.
+
+To import via CLI while keeping a browser tab open, run a second dedicated
+Insight container on another port (e.g. `-p 9882:80`) and point the script at it
+with `--port 9882`; its projects live in that container's own metadata store and
+are viewed at `http://localhost:9882`.
+
 ## NPU-only tools
 
 Build sanitizer instrumentation without `-O0`:

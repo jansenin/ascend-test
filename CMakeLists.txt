@@ -24,12 +24,21 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-foreach(target IN ITEMS vector_add direct_mmad add_mmad_add)
+foreach(target IN ITEMS vector_add direct_mmad add_mmad_add cube_peak)
     add_executable(${target} apps/${target}.asc)
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_compile_options(${target} PRIVATE
         $<$<COMPILE_LANGUAGE:ASC>:--npu-arch=${CMAKE_ASC_ARCHITECTURES}>
     )
+    if(CMAKE_ASC_ARCHITECTURES STREQUAL "dav-3510")
+        target_compile_definitions(${target} PRIVATE
+            ASCENDC_L0C_CAP_BYTES=262144
+            ASCENDC_L1_CAP_BYTES=524288)
+    else()
+        target_compile_definitions(${target} PRIVATE
+            ASCENDC_L0C_CAP_BYTES=131072
+            ASCENDC_L1_CAP_BYTES=523776)
+    endif()
     if(ASCENDC_DEBUG_INFO)
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:ASC>:-g>)
     endif()

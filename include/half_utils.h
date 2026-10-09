@@ -61,4 +61,22 @@ inline float F32(uint16_t value)
     return converted;
 }
 
+// bfloat16 = top 16 bits of float32 (8-bit mantissa). Round-to-nearest-even.
+inline uint16_t BF16(float value)
+{
+    uint32_t bits;
+    std::memcpy(&bits, &value, sizeof(bits));
+    uint32_t rounding = 0x7fffu + ((bits >> 16) & 1u);
+    bits += rounding;
+    return static_cast<uint16_t>(bits >> 16);
+}
+
+inline float BF32(uint16_t value)
+{
+    uint32_t bits = static_cast<uint32_t>(value) << 16;
+    float converted;
+    std::memcpy(&converted, &bits, sizeof(converted));
+    return converted;
+}
+
 }  // namespace lab

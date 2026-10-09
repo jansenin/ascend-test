@@ -28,6 +28,16 @@ SIMT, MMAD, gather/scatter, synchronization) and measure it empirically.
 5. **Do not commit unless asked** (the owner has authorized self-commits when a
    change is clearly needed; when in doubt, present first).
 
+## How to engage with the owner
+
+- **Understand intent, don't just execute literally.** Read *why* a request is
+  made. If the literal ask won't actually satisfy the underlying goal, say so.
+- **Push back on bad suggestions.** If the owner's proposed approach is
+  suboptimal, propose a better one instead of silently implementing it.
+- **Flag suspicious requests.** If something seems strange, or you suspect the
+  owner probably wanted something else, ask before doing it.
+- Prefer a short analysis + question over a long detour in the wrong direction.
+
 ## Workflow (every command through the Docker image)
 
 ```bash

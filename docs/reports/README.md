@@ -13,6 +13,7 @@ them).
 | 4 | [Chained gather: dependency chains](04-chained-gather.md) | `chained_gather_*`, `chained_gather_simd_pipe` |
 | 5 | [Divergent branch + stream compaction](05-divergent-branch-compaction.md) | `branch_simd`, `branch_simt`, `branch_simd_compact` |
 | 6 | [SIMT shared-memory barriers are not optional](06-simt-shared-memory-sync.md) | `chained_gather_simt` (nosync variant) |
+| 7 | [Cube (MMAD) peak throughput: dtype × architecture sweep](07-cube-mmad-peak.md) | `cube_peak` |
 
 ## Common workflow
 

@@ -124,6 +124,13 @@ and written as terse, self-contained notes.
   F from per-pass work W. Example: chained gather "SIMD wins 13%" at k=1 was
   actually F_diff=741 ticks (SIMT's 128-thread block setup) — steady-state W was
   ~equal (6023 vs 6075). **Always amortize before concluding.**
+- **A naive per-tile latency comparison overstates a DMA bottleneck.** In the
+  cube sweep we first claimed "MTE2 (GM→L1) 2045 cyc > MMAD 1049 cyc, so the A
+  stream is a 2x bottleneck". The sweep data disproved it: half/bf16/int8 already
+  hit ratio 1.00, because the per-tile MTE2 transfer is **hidden by the 2-tile
+  double-buffer** (the MTE2 for tile *t+1* overlaps MMAD *t*). Always account for
+  pipelining/double-buffer slack and verify against the actual MMAD issue
+  interval before concluding a data-movement pipe is the limiter.
 - **SIMT msprof produces empty data** (no `trace.json`/`visualize_data.bin`);
   the only SIMT instruction trace is the simulator's `core*.instr_log.dump`.
 - The CA-model simulator *can* catch some races (it caught the shared-memory
@@ -173,3 +180,32 @@ and written as terse, self-contained notes.
   include `simt_api/asc_simt.h`. They are mutually exclusive at compile time.
 - `include/half_utils.h` was created to be include-able by **both** (no
   `kernel_operator.h` / no `simt_api` dependency), for host-side fp16 bit math.
+
+## Cube / MMAD
+
+- **On-core allocators do NOT bounds-check.** `LocalMemAllocator<Hardware::L0A>`
+  (and L0B/L0C) silently wrap/overflow when you request more than the buffer
+  holds — no crash, just garbage output. This bit us: a float A tile of
+  256·64·4 = 64 KB was allocated twice (double-buffered) into a 64 KB L0A, and
+  the result was a "wrong answer" (maxErr 6.9) that looked like a dtype bug but
+  was really a silent overflow. **Always add host-side size guards** to cube
+  kernels: `m·k·sizeof(T) ≤ L0A/2` (double-buffered A), `k·n·sizeof(T) ≤ L0B`,
+  `m·n·sizeof(CT) ≤ L0C`.
+- **`__NPU_ARCH__` is NOT defined in host code** (only device code). To make an
+  arch-dependent constant visible to the host, pass it via CMake
+  `target_compile_definitions(... ASCENDC_L0C_CAP_BYTES=262144)` (bisheng is
+  clang-based and accepts `-D`), not `#if __NPU_ARCH__`.
+- **L0 buffer sizes**: L0A = L0B = 64 KB (both archs); L0C = 128 KB (dav-2201)
+  / 256 KB (dav-3510).
+- **`LoadData` transpose support differs by arch**: on dav-2201
+  `ifTranspose=true` only supports b16 (half/bfloat16) — float/int8 MUST store
+  B transposed `[N,K]` and load with `ifTranspose=false`. On dav-3510
+  `ifTranspose=true` supports b4/b8/b16/b32 but b8 needs `mStep` a multiple of
+  2 (K a multiple of 32). Storing B transposed + `ifTranspose=false` works for
+  all 4 dtypes on both archs — the official `matmul_basic_api_high_performance`
+  uses this (`IS_B_TRANSPOSE=true`).
+- **LoadData kStep/repeatTimes units are dtype-dependent**: K₀ = 32/sizeof(T)
+  (half=16, float=8, int8=32, bfloat16=16). `kStep` (3510) and `repeatTimes`
+  (2201) are in units of K₀; the source offset stride is `512/sizeof(T)`
+  elements. mStep/srcStride/dstStride stay in 16-element M/N fractals
+  (dtype-independent).
