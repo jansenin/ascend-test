@@ -209,3 +209,15 @@ and written as terse, self-contained notes.
   (2201) are in units of K₀; the source offset stride is `512/sizeof(T)`
   elements. mStep/srcStride/dstStride stay in 16-element M/N fractals
   (dtype-independent).
+- **When A and B share L1 (manual byte offsets, A overwriting B's transient
+  space), you MUST sync MTE1→MTE2 across the hand-off.** The A `DataCopy`
+  (MTE2 pipe) will happily overwrite B's L1 region while `LoadData` (MTE1 pipe)
+  is still reading it — `WaitFlag<MTE1_M>` only blocks the Cube (M) pipe, not
+  MTE2. Symptom: wrong results for small M (m=16/m=32) on dav-3510 only,
+  because for small M the A-tiles fill more of B's L1 footprint. Fix:
+  `SetFlag<HardEvent::MTE1_MTE2>(id)` right after `LoadBTile`, then
+  `WaitFlag<HardEvent::MTE1_MTE2>(id)` before the A `DataCopy`. (`MTE1_MTE2` is
+  the "reverse" flag: MTE1 signals done reading L1, MTE2 waits before
+  overwriting.) Isolated with a minimal single-MMAD repro that swapped the
+  allocator-based L1 (a1,b1 separate → PASS) for the manual byte-offset layout
+  (a1,b1 overlapping → FAIL), then confirmed the missing sync.
