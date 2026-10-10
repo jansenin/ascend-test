@@ -32,6 +32,20 @@ from matplotlib.widgets import Slider  # noqa: E402
 from mpl_toolkits.mplot3d import Axes3D  # noqa: E402,F401
 from scipy.interpolate import griddata  # noqa: E402
 
+CLOCK_HZ = 1.8e9
+# Theoretical cube peak in TFLOPS (MAC/cycle * 2 * clock).  half/bf16/int8 do one
+# fractal/cycle (4096/4096/8192 MAC/cyc); float is 1/2 (2201) and 1/8 (3510) of
+# the fp16 rate (measured saturation — no public float MAC-rate spec).
+MAC_PER_CYC = {"half": 4096, "bf16": 4096, "int8": 8192,
+               "float": {"2201": 1024, "3510": 256}}
+
+
+def theoretical_tflops(arch, dtype):
+    m = MAC_PER_CYC[dtype]
+    if isinstance(m, dict):
+        m = m[arch]
+    return 2.0 * m * CLOCK_HZ / 1e12
+
 
 def load(path):
     rows = []
@@ -85,6 +99,7 @@ def main():
 
     max_flops = max(r[3] for r in rows)
     min_flops = min(r[3] for r in rows)
+    theo_peak = theoretical_tflops(args.arch, args.dtype)
     mmin, mmax = min(r[0] for r in rows), max(r[0] for r in rows)
     nmin, nmax = min(r[2] for r in rows), max(r[2] for r in rows)
 
@@ -124,7 +139,7 @@ def main():
 
         # Peak plane in log coords.
         Xp, Yp = np.meshgrid(np.linspace(lmmin, lmmax, 4), np.linspace(lnmin, lnmax, 4))
-        ax.plot_surface(Xp, Yp, np.full_like(Xp, np.log10(max_flops)),
+        ax.plot_surface(Xp, Yp, np.full_like(Xp, np.log10(theo_peak)),
                         alpha=0.20, color="red")
 
         ax.set_xlabel("m")
@@ -150,7 +165,7 @@ def main():
         LMI, LNI = np.meshgrid(lm_grid, ln_grid)
         F = griddata((np.log10(m), np.log10(n)), t, (LMI, LNI), method="linear")
         ax.plot_surface(LMI, LNI, np.log10(F), cmap="turbo", norm=lnorm, alpha=0.95)
-        ax.set_title(f"{args.arch} {args.dtype}   k = {k}   (peak = {max_flops:.2f} TFLOPS)")
+        ax.set_title(f"{args.arch} {args.dtype}   k = {k}   (theoretical peak = {theo_peak:.2f} TFLOPS)")
 
     ax_slider = fig.add_axes([0.18, 0.02, 0.64, 0.03])
     slider = Slider(

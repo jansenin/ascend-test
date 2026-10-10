@@ -216,8 +216,17 @@ and written as terse, self-contained notes.
   MTE2. Symptom: wrong results for small M (m=16/m=32) on dav-3510 only,
   because for small M the A-tiles fill more of B's L1 footprint. Fix:
   `SetFlag<HardEvent::MTE1_MTE2>(id)` right after `LoadBTile`, then
-  `WaitFlag<HardEvent::MTE1_MTE2>(id)` before the A `DataCopy`. (`MTE1_MTE2` is
-  the "reverse" flag: MTE1 signals done reading L1, MTE2 waits before
-  overwriting.) Isolated with a minimal single-MMAD repro that swapped the
-  allocator-based L1 (a1,b1 separate → PASS) for the manual byte-offset layout
-  (a1,b1 overlapping → FAIL), then confirmed the missing sync.
+   `WaitFlag<HardEvent::MTE1_MTE2>(id)` before the A `DataCopy`. (`MTE1_MTE2` is
+   the "reverse" flag: MTE1 signals done reading L1, MTE2 waits before
+   overwriting.) Isolated with a minimal single-MMAD repro that swapped the
+   allocator-based L1 (a1,b1 separate → PASS) for the manual byte-offset layout
+   (a1,b1 overlapping → FAIL), then confirmed the missing sync.
+- **The "1 fractal/cycle" peak (512·K₀ FLOP/cyc) is WRONG for float.** For
+  half/bf16/int8 the cube really does one 16×16×16 / 16×16×32 fractal per cycle
+  (4096/4096/8192 MAC/cyc → 14.75/14.75/29.49 TFLOPS). But float does NOT: the
+  sweep saturates at exactly 1/2 (dav-2201) and 1/8 (dav-3510) of the fp16 rate
+  — 1024 / 256 MAC/cyc = 3.69 / 0.92 TFLOPS. The naive `512·8` formula would
+  claim 7.37 TFLOPS for float, which is never reachable. When drawing a
+  "theoretical peak" reference line, it must be arch-aware for float. (The float
+  MAC rate comes from measurement, not a public spec — treat it as CA-model
+  behaviour until confirmed on silicon.)

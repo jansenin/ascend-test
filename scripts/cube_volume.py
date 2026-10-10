@@ -2,7 +2,7 @@
 """3D volume of cube under-utilization.
 
 Plots every (m, k, n) point whose cube utilization is below a threshold
-(fraction of the best FLOPS this arch/dtype reaches). All three axes are
+(fraction of the theoretical cube peak for this arch/dtype). All three axes are
 log-scale; points are colored by utilization. Points at or above the threshold
 are drawn as a faint gray backdrop so the under-utilized "volume" stands out.
 
@@ -26,6 +26,20 @@ from matplotlib.lines import Line2D
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401  (registers the 3d projection)
 
 DTYPES = ("half", "float", "int8", "bf16")
+
+CLOCK_HZ = 1.8e9
+# Theoretical cube peak in TFLOPS (MAC/cycle * 2 * clock).  half/bf16/int8 do one
+# fractal/cycle (4096/4096/8192 MAC/cyc); float is 1/2 (2201) and 1/8 (3510) of
+# the fp16 rate (measured saturation — no public float MAC-rate spec).
+MAC_PER_CYC = {"half": 4096, "bf16": 4096, "int8": 8192,
+               "float": {"2201": 1024, "3510": 256}}
+
+
+def theoretical_tflops(arch, dtype):
+    m = MAC_PER_CYC[dtype]
+    if isinstance(m, dict):
+        m = m[arch]
+    return 2.0 * m * CLOCK_HZ / 1e12
 
 
 def load_csv(root, arch, dtype):
@@ -78,7 +92,7 @@ def main():
         sys.exit("--threshold must be in (0, 1]")
 
     m, k, n, tf = load_csv(args.root, args.arch, args.dtype)
-    peak = float(tf.max())
+    peak = theoretical_tflops(args.arch, args.dtype)
     util = tf / peak
     sub = util < args.threshold
 
@@ -141,13 +155,13 @@ def main():
     n_tot = int(m.size)
     ax.set_title(
         f"cube under-utilization  arch={args.arch} dtype={args.dtype}\n"
-        f"util < {args.threshold:g}: {n_sub}/{n_tot} points   (peak = {peak:.2f} TFLOPS)"
+        f"util < {args.threshold:g}: {n_sub}/{n_tot} points   (theoretical peak = {peak:.2f} TFLOPS)"
     )
 
     out = args.out or os.path.join(args.root, args.arch, f"volume_{args.dtype}.png")
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     fig.savefig(out, dpi=150, bbox_inches="tight")
-    print(f"wrote {out}  (under-utilized {n_sub}/{n_tot}, peak {peak:.2f} TFLOPS)")
+    print(f"wrote {out}  (under-utilized {n_sub}/{n_tot}, theoretical peak {peak:.2f} TFLOPS)")
     if not args.no_show:
         plt.show()
 
