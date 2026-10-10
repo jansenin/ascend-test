@@ -78,9 +78,6 @@ compression can silently degrade intent.
   the reasoning behind an instruction. Example: "the owner wanted to save context
   from big, low-information code files" is the intent; "always compress big files"
   is a lossy distortion of it.
-- **(Experimental) keep behaviour-governing instructions near the END of a
-  compression summary**, so they remain in active context. If this instruction is
-  unclear, tell the owner rather than guessing.
 - **If a large block that "should be compressed" conflicts with these rules,
   flag it** to the owner instead of silently choosing one side.
 
