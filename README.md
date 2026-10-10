@@ -4,7 +4,9 @@ A reproducible Docker monorepo for low-level AscendC development targeting
 Ascend 910B (`dav-2201`) and Ascend 950 (`dav-3510`). No NPU is needed for CPU
 twin debugging or simulator profiling.
 
-The lab contains three checked executables:
+The lab started with three core kernels that demonstrate the low-level
+programming model, and has since grown into a catalog of SIMD-vs-SIMT and
+Cube/MMAD microbenchmarks (the full experiment index is `docs/reports/README.md`):
 
 - `vector_add`: UB basic-vector add on 910B; explicit RegTensor add on 950.
 - `direct_mmad`: GM/L1/L0A/L0B/L0C programming with direct `AscendC::Mmad`.
