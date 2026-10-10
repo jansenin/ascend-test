@@ -33,7 +33,6 @@ import os
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.lines import Line2D  # noqa: E402
 
 ARCH_LABEL = {"2201": "dav-2201 (910B)", "3510": "dav-3510 (950)"}
 ARCH_COLOR = {"2201": "tab:blue", "3510": "tab:orange"}
@@ -141,7 +140,7 @@ def main():
         else:
             px = [x for x, _ in pts]
             py = [y for _, y in pts]
-            ax.plot(px, py, "o", ms=2, alpha=0.10, color=color)
+            ax.plot(px, py, "o", ms=2, alpha=0.15, color=color)
             ax.plot(xs, ys, "-", lw=2, color=color, label=label)
 
     # 1. per-dtype, two device lines
@@ -152,8 +151,7 @@ def main():
                 draw_line(ax, arch, dtype, ARCH_LABEL[arch], ARCH_COLOR[arch])
                 # theoretical peak reference (dashed, arch colour — float differs by arch)
                 ax.axhline(theoretical_tflops(arch, dtype), color=ARCH_COLOR[arch],
-                           ls=":", lw=1, alpha=0.7,
-                           label=f"{ARCH_LABEL[arch]} peak = {theoretical_tflops(arch, dtype):.2f}")
+                           ls=":", lw=1, alpha=0.7, label=f"ideal ({arch})")
         ax.set_title(dtype)
         if is_sorted:
             ax.set_xlim(0, 1)
@@ -182,7 +180,7 @@ def main():
             if (arch, dtype) in data:
                 draw_line(ax, arch, dtype, dtype, DTYPE_COLOR[dtype])
                 ax.axhline(theoretical_tflops(arch, dtype), color=DTYPE_COLOR[dtype],
-                           ls=":", lw=1, alpha=0.5)
+                           ls=":", lw=1, alpha=0.5, label=f"ideal ({dtype})")
         ax.set_title(ARCH_LABEL[arch])
         if is_sorted:
             ax.set_xlim(0, 1)
@@ -192,12 +190,6 @@ def main():
             ax.set_xlabel(f"x = {args.x}")
         ax.grid(True, which="both", alpha=0.3)
         ax.legend(fontsize=8)
-        if not is_sorted:
-            # single gray legend entry for the raw scatter, so it is not unexplained
-            handles, labels = ax.get_legend_handles_labels()
-            handles.insert(0, Line2D([0], [0], marker="o", ls="", color="0.4",
-                                     ms=3, alpha=0.3, label="raw points"))
-            ax.legend(handles=handles, fontsize=8)
     axes[0].set_ylabel("TFLOPS")
     fig.suptitle(f"cube_peak MMAD FLOPS per device ({mode})", fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
