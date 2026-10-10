@@ -53,9 +53,20 @@ has `max=14.72 TFLOPS` (the same peak as half) but `median=4.92`, i.e. the
 worse — exactly what an MTE2-bound streaming kernel produces at small/mid sizes.
 
 **Conclusion**: the 910B bf16 "anomaly" is a stale-data artifact (old
-GM-streaming kernel vs new L1-preload kernel), not a hardware difference. The
-re-sweep in progress will overwrite `2201/bf16.csv` and the curve should land on
-top of `half`.
+GM-streaming kernel vs new L1-preload kernel), not a hardware difference.
+
+**Confirmed by the re-sweep.** After the fresh L1-preload run, `bfloat16` and
+`half` are byte-identical on both devices:
+
+| arch | dtype | max | median (p50) | p10 |
+|---|---|---:|---:|---:|
+| 2201 | half | 14.71 | 14.52 | 4.75 |
+| 2201 | bf16 | 14.71 | 14.52 | 4.75 |
+| 3510 | half | 14.73 | 14.68 | 11.76 |
+| 3510 | bf16 | 14.73 | 14.68 | 11.76 |
+
+So the odd 910B curve was purely the old-vs-new kernel mismatch; there is no
+bfloat16-vs-half hardware difference on either architecture.
 
 Side finding worth recording: on 2201 the L1 preload is capacity-bound. The
 constraint `16 · m·k·sizeof(T) ≤ 523776 B` (L1 = 512 KiB minus a 256 B
