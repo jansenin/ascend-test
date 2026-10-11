@@ -15,6 +15,7 @@ them).
 | 6 | [SIMT shared-memory barriers are not optional](06-simt-shared-memory-sync.md) | `chained_gather_simt` (nosync variant) |
 | 7 | [Cube (MMAD) peak throughput: dtype × architecture sweep](07-cube-mmad-peak.md) | `cube_peak` |
 | 8 | [bf16 "anomaly" on 910B: a stale-data artifact](08-bf16-2201-anomaly.md) | `cube_peak` |
+| 9 | [UB memory-bank conflict: dense vs 128-byte-gap placement](09-ub-bank-conflict.md) | `bank_add` |
 
 ## Common workflow
 

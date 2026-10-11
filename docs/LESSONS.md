@@ -137,6 +137,32 @@ and written as terse, self-contained notes.
   race above), but never treat it as authoritative for real-hardware races or
   timing.
 
+## UB memory banks
+
+- **The "bank group" interleave period is 512 B on dav-2201, 256 B on dav-3510**
+  — the common "256 bytes = one full bank group" assumption only holds for 3510.
+  On 2201, UB = 48 banks / 16 groups / 3 banks per group (`bank=(addr/32)%48`,
+  `group=(addr/32)%16`), so a full group spans 512 B and the same bank recurs
+  every 1536 B. On 3510, UB = 8 groups / 2 banks per group (`BG=(addr/32)%8`,
+  `bank=(addr/256)%2`). Conflicts: read/write same bank (both), write/write same
+  group (both), read/read same group (2201) vs "two reads same bank OR ≥3 reads
+  same group" (3510). Source: `avoid_bank_conflict_npu_arch_{2201,3510}.md`.
+- **On dav-3510, MemBase `AscendC::Add` lowers to register ops, not memory ops.**
+  The `instr_log.dump` shows `RV_VADD ... Vd[0], Vn[0], Vm[1], Pg[1]` (register
+  file + predicate), one per 64-element register — there is NO MemBase `VADD` on
+  3510. So the compute interval of a 3510 vector add does NOT touch UB banks;
+  banks are only reached through `RV_VLDI`/`RV_VSTI` (VLD/VST). "Avoid
+  RegBase programming" is therefore impossible on 3510 — the MemBase add IS
+  register programming there. Only 2201 has a genuine memory-to-memory
+  `VADD XD:X4=0x2000, XN:.., XM:..` whose operand fields are UB byte addresses.
+- **The CA-model simulator does not model UB bank conflicts for the vector-add
+  path.** A 16-add microbenchmark (dense 1024-elem blocks vs 128-byte gaps)
+  showed dense≈sparse on both archs (2201 54.87 vs 54.20 cyc; 3510 2.29 vs 2.61
+  cyc — dense actually *faster*) despite the dense layout placing all operands in
+  one bank group. The 2201 `VADD` is flat UB-bandwidth-bound (~224 B/cycle). To
+  observe banks in the model you'd need a strided Repeat access (8 DataBlocks in
+  one group = the doc's 8-beat case) plus a 2201 MemBase op that touches UB.
+
 ## SIMD vs SIMT (corrected mental model)
 
 - **SIMT is warp-level SIMD**, not per-thread scalar. SIMT instructions carry
