@@ -105,32 +105,37 @@ UB (down to ~224 KB usable).
 
 ## Memory bandwidth
 
-Two distinct bandwidth models exist in the PTO cost model, and neither is a set
-of physical point-to-point links — every GM access goes through the off-core
-**L2 Cache** first (`basic_architecture.md:206`: all MTE GM traffic is cached in
-L2 by default).
+The PTO cost model contains **no physical HBM peak** — it models GM traffic as
+*effective per-stream throughput*, not point-to-point links. Every GM access
+goes through the off-core **L2 Cache** first (`basic_architecture.md:206`: all
+MTE GM traffic is cached in L2 by default).
 
-**Model 1 — the `perf_sim` cache model** (`pto/costmodel/perf_sim/config.hpp`),
-which *does* model L2 explicitly (bytes/cycle, × 1.85 GHz):
+The **card-level HBM bandwidth is ~800 GB/s**, shared across all AI Cores. That
+figure is a chip-level datasheet spec and is **not present** in the `asc-devkit`
+arch docs or the PTO source in this repo. Both PTO models below produce
+*effective* numbers far below 800 GB/s because they are per-stream / per-core
+constants, not the aggregate HBM peak.
 
-| hop | bandwidth |
+**Model 1 — the `perf_sim` cache model** (`pto/costmodel/perf_sim/config.hpp`).
+These are **"pypto default" placeholders** (`has_l2=false`): they are *not*
+calibrated chip values and must not be quoted as real bandwidth:
+
+| hop | placeholder value |
 |---|---|
-| GM → L2 (`gm_read_bw`) | 64 B/cyc ≈ 118 GB/s ≈ 950 Gb/s |
+| GM → L2 (`gm_read_bw`) | 64 B/cyc ≈ 118 GB/s |
 | L2 → core (`l2_read_bw`) | 256 B/cyc ≈ 474 GB/s |
 | L2 cache line / hit / miss-extra | 512 B / 50 cyc / 150 cyc |
 
-So the physical GM↔L2 bottleneck is ~64 B/cyc (~800–950 Gb/s). Any GM→UB or
-GM→L1 traffic is bounded by this shared hop, **not** by a dedicated per-buffer
-pipe.
-
 **Model 2 — the 2201 `formula` cost model** (`arch_config.hpp`,
 `kA2A3ArchConfig`), a flat per-pipe GiB/s table used by
-`EstimateBandwidthCycles`. These are *effective* per-pipe numbers (already
-inclusive of the L2 path), not independent physical links:
+`EstimateBandwidthCycles`. These are *effective per-stream* cost constants
+(already inclusive of the shared L2/HBM path), **not** physical link
+bandwidths — "GM→UB 100.9 GiB/s" is a per-stream effective rate, not the
+~800 GB/s HBM:
 
 ```mermaid
 flowchart TB
-    GM["Global Memory (HBM)"]
+    GM["Global Memory (HBM)<br/>~800 GB/s physical"]
     L2["L2 Cache (unified)"]
     L1["L1 (cube staging) 512 KB"]
     UB["UB 192 KB"]
@@ -139,17 +144,17 @@ flowchart TB
     L0C["L0C 128 KB"]
     BT["BiasTable 1 KB"]
 
-    GM -->|"GM↔L2 ~64 B/cyc (~800 Gb/s)"| L2
-    L2 -->|"GM→UB 100.9 GiB/s"| UB
-    L2 -->|"GM→L1 135.0 GiB/s"| L1
-    UB -->|"UB→GM 188.5 GiB/s"| GM
-    L1 -->|"L1→GM 32 GiB/s"| GM
-    UB -->|"UB→UB 1024 GiB/s"| UB
-    L0C -->|"L0C→GM 70 GiB/s"| GM
-    L0C -->|"L0C→L1 128 GiB/s"| L1
-    L1 -->|"L1→L0A 441 GiB/s"| L0A
-    L1 -->|"L1→L0B 220.5 GiB/s"| L0B
-    L1 -->|"L1→BT 32 GiB/s"| BT
+    GM --- L2
+    L2 -->|"GM→UB 100.9 (effective)"| UB
+    L2 -->|"GM→L1 135.0 (effective)"| L1
+    UB -->|"UB→GM 188.5 (effective)"| GM
+    L1 -->|"L1→GM 32 (effective)"| GM
+    UB -->|"UB→UB 1024"| UB
+    L0C -->|"L0C→GM 70 (effective)"| GM
+    L0C -->|"L0C→L1 128"| L1
+    L1 -->|"L1→L0A 441"| L0A
+    L1 -->|"L1→L0B 220.5"| L0B
+    L1 -->|"L1→BT 32"| BT
 ```
 
 The `L1→L0A : L1→L0B` ratio is exactly **2 : 1** (441 : 220.5), matching the
@@ -330,11 +335,12 @@ re-copy per report 10). Abbreviations used below:
 | 3510: L1→L0A 256, L1→L0B 256, L1→UB 128, UB→L1 128, L0C→UB 128, L0C→L1 128 | `AS3510:131-136` |
 | 3510 "adds L0C→UB / UB↔L1, drops GM→L0A/B" | `AS3510:13-14` |
 
-### Memory bandwidth (GiB/s, 2201 only — PTO has no a5 table)
+### Memory bandwidth (2201 only — PTO has no a5 table)
 
 | value | source |
 |---|---|
-| GM→UB 100.9, GM→L1 135.0, UB→GM 188.46, L1→GM 32, UB→UB 1024, L0C→GM 70, L0C→L1 128, L1→L0A 441, L1→L0B 220.5, L1→BT/FB/FILL 32 | `ARCH:105-116` (fields listed in `ARCH:101` `kA2A3ArchConfig`) |
+| card-level HBM ≈ 800 GB/s (physical, shared) | chip datasheet — **not** in `asc-devkit`/PTO source in this repo |
+| GM→UB 100.9, GM→L1 135.0, UB→GM 188.46, L1→GM 32, UB→UB 1024, L0C→GM 70, L0C→L1 128, L1→L0A 441, L1→L0B 220.5, L1→BT/FB/FILL 32 (effective per-stream cost constants, not physical links) | `ARCH:105-116` (fields listed in `ARCH:101` `kA2A3ArchConfig`) |
 | frequency 1.85 GHz | `ARCH:24` |
 | `kBytesPerGb` (units are GiB/s) | `ARCH:23` |
 
