@@ -47,21 +47,33 @@ Authoritative source:
 
 | property | dav-2201 | dav-3510 |
 |---|---|---|
-| banks | 48 | 16 |
+| banks | 48 (3 regions × 16 groups) | 16 (2 banks × 8 groups) |
 | bank groups | 16 (3 banks each: `{g, g+16, g+32}`) | 8 (2 banks each) |
 | bank size | 4 KB = 128 rows × 32 B | 16 KB = 512 rows × 32 B |
-| bank index | `(addr/32) % 48` | `(addr/256) % 2` |
+| bank index | `region·16 + group` = `(addr/65536)*16 + (addr/32)%16` | `(addr/256) % 2` |
 | bank-group index | `(addr/32) % 16` | `(addr/32) % 8` |
+| region (pos-in-group) | `addr/65536` = `addr[17:16]` (0,1,2) | — |
 | group period | 512 B | 256 B |
-| same-bank period | 1536 B | 512 B |
-| read/write conflict | same bank | same bank |
+| same-bank period | 512 B (within a 64-KB region) | 512 B |
+| read/write conflict | same bank (same region + group) | same bank |
 | write/write conflict | same group | same group |
 | read/read conflict | same group | same bank, or ≥3 reads same group |
 
 > **A bank group is NOT 256 B on dav-2201** (it is 512 B there; 256 B is only
-> correct for 3510). Also note: on 3510 the MemBase `AscendC::Add` compiles to
-> register `RV_VADD` ops, so its compute interval never touches UB banks — banks
-> are only exercised through `RV_VLDI`/`RV_VSTI`.
+> correct for 3510).
+>
+> **dav-2201 address decomposition** (192 KB = 3 × 64 KB, 18-bit address, only 3
+> of 4 `region` values used): `addr[17:16]` = region (which 64-KB block = which
+> of the 3 banks in a group), `addr[15:9]` = row within bank (128 rows × 32 B =
+> 4 KB), `addr[8:5]` = bank-group id (16), `addr[4:0]` = byte within a 32-B row.
+> So the 3 banks of one group live in three separate 64-KB SRAM blocks — that is
+> why a 64-KB offset does *not* de-conflict (same group id, different region),
+> while a 256-B offset does (different group id). By contrast **dav-3510** is
+> low-bit interleave: `addr[8]` = bank, `addr[7:5]` = group, `addr[4:0]` = width.
+>
+> Also note: on 3510 the MemBase `AscendC::Add` compiles to register `RV_VADD`
+> ops, so its compute interval never touches UB banks — banks are only exercised
+> through `RV_VLDI`/`RV_VSTI`.
 
 ## Cube / MMAD
 

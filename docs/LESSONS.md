@@ -141,12 +141,19 @@ and written as terse, self-contained notes.
 
 - **The "bank group" interleave period is 512 B on dav-2201, 256 B on dav-3510**
   — the common "256 bytes = one full bank group" assumption only holds for 3510.
-  On 2201, UB = 48 banks / 16 groups / 3 banks per group (`bank=(addr/32)%48`,
-  `group=(addr/32)%16`), so a full group spans 512 B and the same bank recurs
-  every 1536 B. On 3510, UB = 8 groups / 2 banks per group (`BG=(addr/32)%8`,
-  `bank=(addr/256)%2`). Conflicts: read/write same bank (both), write/write same
-  group (both), read/read same group (2201) vs "two reads same bank OR ≥3 reads
-  same group" (3510). Source: `avoid_bank_conflict_npu_arch_{2201,3510}.md`.
+  On 2201, UB = 48 banks = 3 regions × 16 groups (3 banks per group); the bank id
+  is `region·16 + group = (addr/65536)*16 + (addr/32)%16`, i.e. `region=addr[17:16]`
+  selects which 64-KB block (= which of the 3 banks in a group), while the group
+  id `(addr/32)%16` (`addr[8:5]`) is the conflict axis. So a full group spans
+  512 B, the *same bank* recurs every 512 B *within a region*, and the 3 banks of
+  one group live 64 KB apart. On 3510, UB = 8 groups / 2 banks per group
+  (`BG=(addr/32)%8`, `bank=(addr/256)%2`, low-bit interleave). Conflicts:
+  read/write same bank (both), write/write same group (both), read/read same
+  group (2201) vs "two reads same bank OR ≥3 reads same group" (3510). Source:
+  `avoid_bank_conflict_npu_arch_{2201,3510}.md`. Note the earlier
+  `bank=(addr/32)%48` label in this file/report 09 was WRONG (it predicted the
+  right conflicts but the wrong bank numbers); the `region·16+group` form matches
+  every vendor example (`0x10000`→bank16, `0x10020`→bank17, `0x20020`→bank33).
 - **On dav-3510, MemBase `AscendC::Add` lowers to register ops, not memory ops.**
   The `instr_log.dump` shows `RV_VADD ... Vd[0], Vn[0], Vm[1], Pg[1]` (register
   file + predicate), one per 64-element register — there is NO MemBase `VADD` on

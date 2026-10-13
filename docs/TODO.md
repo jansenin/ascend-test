@@ -37,3 +37,19 @@ Source material already located:
 
 Already-extracted summaries that feed this: `docs/REFERENCE.md` (buffer sizes /
 K0 / measured rates), `docs/reports/07-cube-mmad-peak.md` (measured FLOPS).
+
+## Deferred task: gather memory-parallelism sweep
+
+The owner's instruction, verbatim: "memory parallelism check with gather. Make
+several gather inputs such that simulated gather is fast, slower, slower, ...
+(no conflicts -> many conflicts) and then simulate in on simulator and make a
+graph of y=speed, x=average conflicts".
+
+To do: build a gather (`RV_VGATHER2` on 3510; 2201 has no gather) kernel whose
+inputs are arranged from no-bank-conflict to many-conflict, measure the speed
+(via the instruction-issue interval or tick span) at each point, and plot
+speed vs. average number of bank conflicts. This is the natural follow-up to
+report 09 (`docs/reports/09-ub-bank-conflict.md`), where gather/scatter was
+identified as the operation most likely to expose the 3510 sub-bank (8 B)
+conflict rules (sub-bank conflicts documented at
+`avoid_bank_conflict_npu_arch_3510.md` lines 241-247).

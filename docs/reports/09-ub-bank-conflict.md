@@ -49,12 +49,14 @@ dense layout genuinely does collide (see below) yet costs nothing measurable.
 Two vendor docs disagree with the "256 bytes = a full bank group" assumption.
 From `Vector_logical_arch.md` and the `avoid_bank_conflict_*` guides:
 
-* **dav-2201** (910B / A2 / A3): UB = 48 banks, 16 bank groups, **3 banks per
-  group**, each bank 4 KB = 128 rows × 32 B. `bank = (addr/32) % 48`,
-  `bank_group = (addr/32) % 16`, so a group's banks are 16 apart (bank *g*,
-  *g*+16, *g*+32). **Bank-group period = 512 B** (16 rows × 32 B); same-bank
-  period = 1536 B. Conflicts: read/write same bank; write/write same group;
-  read/read same group.
+* **dav-2201** (910B / A2 / A3): UB = 48 banks = 3 regions × 16 bank groups,
+  **3 banks per group**, each bank 4 KB = 128 rows × 32 B. Bank id =
+  `region·16 + group`, where `region = addr/65536` (`addr[17:16]`, the 0/1/2
+  axis — which 64-KB block) and `group = (addr/32) % 16` (`addr[8:5]`). So a
+  group's banks are 16 apart (bank *g*, *g*+16, *g*+32) and live 64 KB apart
+  (one per region). **Bank-group period = 512 B** (16 rows × 32 B); same-bank
+  period = 512 B within a region. Conflicts: read/write same bank (same region
+  + group); write/write same group; read/read same group.
 * **dav-3510** (950): UB = 8 groups, 2 banks per group, each bank 16 KB = 512
   rows × 32 B. Address encoding `UB_ADDR = {BANK_DEPTH[9], BANK[1], BG[3],
   BANK_WIDTH[5]}`. **Bank-group period = 256 B**, same-bank period = 512 B.
@@ -62,13 +64,15 @@ From `Vector_logical_arch.md` and the `avoid_bank_conflict_*` guides:
   same bank or ≥3 reads same group.
 
 So **"256 bytes = a full bank group" is correct for 3510 but wrong for 2201**,
-where a bank-group cycle is 512 bytes (and a single bank cycle is 1536 bytes).
+where a bank-group cycle is 512 bytes (and the same bank recurs every 512 bytes
+*within a 64-KB region* — the 3 banks of a group are separated by region, i.e.
+64 KB, not by a fine address period).
 
 The dense layout *does* collide on 2201: `lhs@0 → bank 0 (group 0)`,
-`rhs@4096 → bank 32 (group 0)`, `dst@8192 → bank 16 (group 0)` — all three
-operands in group 0, so the two reads (`lhs`,`rhs`) hit the read/read-conflict
-condition. The sparse layout separates them into groups 0 / 4 / 8. Yet the issue
-interval barely moves.
+`rhs@4096 → bank 0 (group 0)`, `dst@8192 → bank 0 (group 0)` — all three
+operands in group 0 (in fact the same bank), so the two reads (`lhs`,`rhs`) hit
+the read/read-conflict condition. The sparse layout separates them into groups
+0 / 4 / 8. Yet the issue interval barely moves.
 
 ### Why 3510 is measuring register throughput, not banks
 
