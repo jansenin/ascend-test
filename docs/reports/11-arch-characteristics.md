@@ -27,16 +27,16 @@ compare 910B and 950 without re-reading five reports.
 
 ```mermaid
 flowchart LR
-    subgraph HBM["Global Memory (HBM)"]
-        GM["HBM / DDR<br/>card-level"]
-    end
+    GM["Global Memory (HBM / DDR)<br/>card-level"]
+
+    L2["L2 Cache<br/>unified · shared by ALL cores<br/>caches every GM read/write"]
 
     subgraph D2201["Ascend 910B · dav-2201 (Atlas A2/A3)"]
         direction TB
-        L1A["L1 Unified Buffer<br/>512 KB (523776 B)"]
         subgraph C2201["per-core pair (24 AIC : 48 AIV)"]
             direction LR
             subgraph AIC1["AIC — Cube"]
+                L1A["L1 Buffer 512 KB<br/>(cube staging)"]
                 L0A1["L0A 64 KB"]
                 L0B1["L0B 64 KB"]
                 MMAD1["Cube (MMAD)<br/>4096 MAC/cyc half<br/>1024 MAC/cyc fp32"]
@@ -53,10 +53,10 @@ flowchart LR
 
     subgraph D3510["Ascend 950 · dav-3510 (950PR / 950DT)"]
         direction TB
-        L1B["L1 Unified Buffer<br/>512 KB (524288 B)"]
         subgraph C3510["per-core pair (AIC : AIV = 1 : 2)"]
             direction LR
             subgraph AIC2["AIC — Cube"]
+                L1B["L1 Buffer 512 KB<br/>(cube staging)"]
                 L0A2["L0A 64 KB"]
                 L0B2["L0B 64 KB"]
                 MMAD2["Cube (MMAD)<br/>4096 MAC/cyc half<br/>+ FP8 / HiF8"]
@@ -71,13 +71,21 @@ flowchart LR
         end
     end
 
-    GM --> L1A
-    GM --> L1B
-    L1A --> AIC1
-    L1A --> AIV1
-    L1B --> AIC2
-    L1B --> AIV2
+    GM --> L2
+    L2 -->|"GM→UB (MTE2)"| UB1
+    L2 -->|"GM→UB (MTE2)"| UB2
+    L2 -->|"GM→L1 (MTE1)"| L1A
+    L2 -->|"GM→L1 (MTE1)"| L1B
+    L1A --> L0A1
+    L1A --> L0B1
+    L1B --> L0A2
+    L1B --> L0B2
 ```
+
+The **L2 Cache is the unified, shared** layer (off-core, between GM and every
+core); **L1 is not unified** — it is a per-AIC buffer inside the cube that
+stages A/B matrix tiles (`L1→L0A/L0B`). The vector unit reads GM straight into
+UB (through L2, not through L1).
 
 ## Buffers, side by side
 
@@ -97,21 +105,43 @@ UB (down to ~224 KB usable).
 
 ## Memory bandwidth
 
-2201 per-pipe bandwidth from the PTO cost model (`arch_config.hpp`,
-`kA2A3ArchConfig`, frequency 1.85 GHz — the values are the model's GiB/s):
+Two distinct bandwidth models exist in the PTO cost model, and neither is a set
+of physical point-to-point links — every GM access goes through the off-core
+**L2 Cache** first (`basic_architecture.md:206`: all MTE GM traffic is cached in
+L2 by default).
+
+**Model 1 — the `perf_sim` cache model** (`pto/costmodel/perf_sim/config.hpp`),
+which *does* model L2 explicitly (bytes/cycle, × 1.85 GHz):
+
+| hop | bandwidth |
+|---|---|
+| GM → L2 (`gm_read_bw`) | 64 B/cyc ≈ 118 GB/s ≈ 950 Gb/s |
+| L2 → core (`l2_read_bw`) | 256 B/cyc ≈ 474 GB/s |
+| L2 cache line / hit / miss-extra | 512 B / 50 cyc / 150 cyc |
+
+So the physical GM↔L2 bottleneck is ~64 B/cyc (~800–950 Gb/s). Any GM→UB or
+GM→L1 traffic is bounded by this shared hop, **not** by a dedicated per-buffer
+pipe.
+
+**Model 2 — the 2201 `formula` cost model** (`arch_config.hpp`,
+`kA2A3ArchConfig`), a flat per-pipe GiB/s table used by
+`EstimateBandwidthCycles`. These are *effective* per-pipe numbers (already
+inclusive of the L2 path), not independent physical links:
 
 ```mermaid
 flowchart TB
     GM["Global Memory (HBM)"]
-    L1["L1 (Unified Buffer) 512 KB"]
+    L2["L2 Cache (unified)"]
+    L1["L1 (cube staging) 512 KB"]
     UB["UB 192 KB"]
     L0A["L0A 64 KB"]
     L0B["L0B 64 KB"]
     L0C["L0C 128 KB"]
     BT["BiasTable 1 KB"]
 
-    GM -->|"GM→UB 100.9 GiB/s"| UB
-    GM -->|"GM→L1 135.0 GiB/s"| L1
+    GM -->|"GM↔L2 ~64 B/cyc (~800 Gb/s)"| L2
+    L2 -->|"GM→UB 100.9 GiB/s"| UB
+    L2 -->|"GM→L1 135.0 GiB/s"| L1
     UB -->|"UB→GM 188.5 GiB/s"| GM
     L1 -->|"L1→GM 32 GiB/s"| GM
     UB -->|"UB→UB 1024 GiB/s"| UB
@@ -123,8 +153,8 @@ flowchart TB
 ```
 
 The `L1→L0A : L1→L0B` ratio is exactly **2 : 1** (441 : 220.5), matching the
-arch-spec 256 : 128 B/cycle. The two generations' *data paths* (per the arch
-spec, B/cycle):
+arch-spec 256 : 128 B/cycle. The two generations' *on-core data paths* (per
+the arch spec, B/cycle):
 
 ```mermaid
 flowchart LR
@@ -144,8 +174,9 @@ flowchart LR
     end
 ```
 
-950 keeps the cube feed paths and adds four new ones: `UB↔L1` and `L0C→UB`,
-and drops the old `GM→L0A/B` direct feeds — everything flows through L1.
+950 keeps the cube feed paths, adds `UB↔L1` and `L0C→UB`, and drops the old
+`GM→L0A/B` direct feeds. The vector's GM path (GM→UB via L2) is unchanged — UB
+is fed from GM/L2 directly, **not** through L1.
 
 ## Vector unit: MemBase → RegBase
 
@@ -278,6 +309,8 @@ re-copy per report 10). Abbreviations used below:
 - `FORMULA` = `pto/costmodel/a2a3/formula_costmodel/formula_params.csv`
 - `ISA` = `pto/costmodel/a5/VfSim/params/isa.csv`
 - `UARCH` = `pto/costmodel/a5/VfSim/params/uarch.csv`
+- `BASIC` = `asc-devkit/docs/zh/guide/programming_guide/advanced_programming/hardware_implementation/basic_architecture.md`
+- `PSIM` = `pto/costmodel/perf_sim/config.hpp`
 
 ### Buffers
 
@@ -304,6 +337,15 @@ re-copy per report 10). Abbreviations used below:
 | GM→UB 100.9, GM→L1 135.0, UB→GM 188.46, L1→GM 32, UB→UB 1024, L0C→GM 70, L0C→L1 128, L1→L0A 441, L1→L0B 220.5, L1→BT/FB/FILL 32 | `ARCH:105-116` (fields listed in `ARCH:101` `kA2A3ArchConfig`) |
 | frequency 1.85 GHz | `ARCH:24` |
 | `kBytesPerGb` (units are GiB/s) | `ARCH:23` |
+
+### Memory hierarchy & L2 (the shared cache)
+
+| value | source |
+|---|---|
+| L2 Cache is off-core, shared by all Vector Cores, sits between GM and each core's Data Cache | `abstract_hardware_architecture.md:16` (SIMT doc) |
+| L2 Cache = off-core shared cache for GM data (all MTE GM reads/writes cached by default) | `BASIC:113`, `BASIC:206` |
+| L1 Buffer = inside AI Core, a staging area for Cube data (not unified/shared) | `BASIC:137` |
+| `gm_read_bw=64 B/cyc`, `l2_read_bw=256 B/cyc`, `l2_cache_line=512`, `l2_hit_latency=50`, `l2_miss_extra_latency=150` | `PSIM:49-50,53-54` (perf_sim cache model, pypto defaults) |
 
 ### Vector unit (MemBase → RegBase)
 

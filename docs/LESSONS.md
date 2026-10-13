@@ -217,6 +217,21 @@ and written as terse, self-contained notes.
 - `include/half_utils.h` was created to be include-able by **both** (no
   `kernel_operator.h` / no `simt_api` dependency), for host-side fp16 bit math.
 
+## Memory hierarchy (GM → L2 → L1 / UB)
+
+- **L2 is the unified/shared cache; L1 is per-core cube staging, NOT unified.**
+  The off-core L2 Cache sits between GM and every AI core and caches *all* MTE
+  GM traffic by default (`basic_architecture.md:113,206`; SIMT
+  `abstract_hardware_architecture.md:16`). The L1 Buffer is *inside* the AI core
+  and stages cube A/B tiles (`L1→L0A/L0B`) — the vector unit reads GM straight
+  into UB through L2, not through L1. We first drew L1 as a "unified buffer"
+  feeding both AIC and AIV and omitted L2 entirely; that is wrong.
+- **GM→UB bandwidth is bounded by the GM↔L2 hop, not a dedicated pipe.** The
+  PTO `perf_sim` cache model gives `gm_read_bw=64 B/cyc` (≈118 GB/s ≈ 950 Gb/s)
+  vs `l2_read_bw=256 B/cyc` (`pto/costmodel/perf_sim/config.hpp:49-54`). The
+  flat `kA2A3ArchConfig` "GM→UB 100.9 GiB/s" is an *effective* per-pipe number
+  already including L2, not an independent physical link.
+
 ## Cube / MMAD
 
 - **On-core allocators do NOT bounds-check.** `LocalMemAllocator<Hardware::L0A>`
