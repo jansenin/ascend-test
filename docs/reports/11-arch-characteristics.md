@@ -5,7 +5,7 @@
 Consolidated everything we know about the two chips into one place: the vendor
 architecture-spec docs (`npu_arch_2201.md` / `npu_arch_3510.md`), the PTO cost
 model we extracted (`vendor-src/pto/`), our own simulator measurements, and the
-UB bank structure from report 09. Then drew it up as a set of diagrams — one big
+UB bank structure from report 09. Then wrote it up as a set of tables — one big
 overview plus focused views per hardware component.
 
 ## Why we did it
@@ -13,7 +13,7 @@ overview plus focused views per hardware component.
 The deferred task "950 vs 910 characteristics" had been sitting in `docs/TODO.md`
 since the early sessions. Every experiment so far (banks, cube peak, SIMT, PTO)
 has produced a fragment of this picture, but nothing assembled the fragments
-side by side. A set of diagrams makes the *differences* between the two
+side by side. A set of tables makes the *differences* between the two
 generations immediately visible.
 
 ## What we wanted to check
@@ -25,62 +25,14 @@ compare 910B and 950 without re-reading five reports.
 
 ## The big picture
 
-```mermaid
-flowchart LR
-    GM["Global Memory (HBM / DDR)<br/>card-level"]
-
-    L2["L2 Cache<br/>unified · shared by ALL cores<br/>caches every GM read/write"]
-
-    subgraph D2201["Ascend 910B · dav-2201 (Atlas A2/A3)"]
-        direction TB
-        subgraph C2201["per-core pair (24 AIC : 48 AIV)"]
-            direction LR
-            subgraph AIC1["AIC — Cube"]
-                L1A["L1 Buffer 512 KB<br/>(cube staging)"]
-                L0A1["L0A 64 KB"]
-                L0B1["L0B 64 KB"]
-                MMAD1["Cube (MMAD)<br/>4096 MAC/cyc half<br/>1024 MAC/cyc fp32"]
-                L0C1["L0C 128 KB"]
-                BT1["BiasTable 1 KB"]
-            end
-            subgraph AIV1["AIV — Vector"]
-                UB1["UB 192 KB (196352 B)"]
-                VEC1["Vector (MemBase)<br/>memory-to-memory VADD"]
-                SC1["Scalar"]
-            end
-        end
-    end
-
-    subgraph D3510["Ascend 950 · dav-3510 (950PR / 950DT)"]
-        direction TB
-        subgraph C3510["per-core pair (AIC : AIV = 1 : 2)"]
-            direction LR
-            subgraph AIC2["AIC — Cube"]
-                L1B["L1 Buffer 512 KB<br/>(cube staging)"]
-                L0A2["L0A 64 KB"]
-                L0B2["L0B 64 KB"]
-                MMAD2["Cube (MMAD)<br/>4096 MAC/cyc half<br/>+ FP8 / HiF8"]
-                L0C2["L0C 256 KB"]
-                BT2["BiasTable 4 KB"]
-            end
-            subgraph AIV2["AIV — Vector"]
-                UB2["UB 256 KB (253952 B)"]
-                VEC2["Vector (RegBase)<br/>+ SIMT"]
-                SC2["Scalar (+FP64)"]
-            end
-        end
-    end
-
-    GM --> L2
-    L2 -->|"GM→UB (MTE2)"| UB1
-    L2 -->|"GM→UB (MTE2)"| UB2
-    L2 -->|"GM→L1 (MTE1)"| L1A
-    L2 -->|"GM→L1 (MTE1)"| L1B
-    L1A --> L0A1
-    L1A --> L0B1
-    L1B --> L0A2
-    L1B --> L0B2
-```
+| component | dav-2201 (910B, Atlas A2/A3) | dav-3510 (950) |
+|---|---|---|
+| Global Memory | HBM/DDR, card-level (~800 GB/s physical, shared) | same |
+| L2 Cache | off-core, unified, shared by all cores; caches every GM read/write | same |
+| AIC — Cube | L1 512 KB → L0A/L0B 64 KB → MMAD → L0C 128 KB + BiasTable 1 KB | L1 512 KB → L0A/L0B 64 KB → MMAD → L0C 256 KB + BiasTable 4 KB |
+| AIC — Cube peak | 4096 MAC/cyc half, 1024 fp32 | 4096 MAC/cyc half + FP8/HiF8 |
+| AIV — Vector | UB 192 KB, MemBase (memory-to-memory VADD), Scalar | UB 256 KB, RegBase + SIMT, Scalar (+FP64) |
+| core ratio | 24 AIC : 48 AIV | 1 : 2 |
 
 The **L2 Cache is the unified, shared** layer (off-core, between GM and every
 core); **L1 is not unified** — it is a per-AIC buffer inside the cube that
@@ -133,51 +85,31 @@ calibrated chip values and must not be quoted as real bandwidth:
 bandwidths — "GM→UB 100.9 GiB/s" is a per-stream effective rate, not the
 ~800 GB/s HBM:
 
-```mermaid
-flowchart TB
-    GM["Global Memory (HBM)<br/>~800 GB/s physical"]
-    L2["L2 Cache (unified)"]
-    L1["L1 (cube staging) 512 KB"]
-    UB["UB 192 KB"]
-    L0A["L0A 64 KB"]
-    L0B["L0B 64 KB"]
-    L0C["L0C 128 KB"]
-    BT["BiasTable 1 KB"]
-
-    GM --- L2
-    L2 -->|"GM→UB 100.9 (effective)"| UB
-    L2 -->|"GM→L1 135.0 (effective)"| L1
-    UB -->|"UB→GM 188.5 (effective)"| GM
-    L1 -->|"L1→GM 32 (effective)"| GM
-    UB -->|"UB→UB 1024"| UB
-    L0C -->|"L0C→GM 70 (effective)"| GM
-    L0C -->|"L0C→L1 128"| L1
-    L1 -->|"L1→L0A 441"| L0A
-    L1 -->|"L1→L0B 220.5"| L0B
-    L1 -->|"L1→BT 32"| BT
-```
+| pipe | effective GiB/s |
+|---|---|
+| GM → UB | 100.9 |
+| GM → L1 | 135.0 |
+| UB → GM | 188.46 |
+| L1 → GM | 32.0 |
+| UB → UB | 1024.0 |
+| L0C → GM | 70.0 |
+| L0C → L1 | 128.0 |
+| L1 → L0A | 441.0 |
+| L1 → L0B | 220.5 |
+| L1 → BiasTable / Fixpipe / FILL | 32.0 |
 
 The `L1→L0A : L1→L0B` ratio is exactly **2 : 1** (441 : 220.5), matching the
 arch-spec 256 : 128 B/cycle. The two generations' *on-core data paths* (per
 the arch spec, B/cycle):
 
-```mermaid
-flowchart LR
-    subgraph P2201["dav-2201 — 2 data paths"]
-        direction TB
-        p1["L1 → L0A : 256 B/cyc"]
-        p2["L1 → L0B : 128 B/cyc"]
-    end
-    subgraph P3510["dav-3510 — 6 data paths"]
-        direction TB
-        q1["L1 → L0A : 256 B/cyc"]
-        q2["L1 → L0B : 256 B/cyc  (B path doubled)"]
-        q3["L1 → UB : 128 B/cyc  (new)"]
-        q4["UB → L1 : 128 B/cyc  (new)"]
-        q5["L0C → UB : 128 B/cyc  (new)"]
-        q6["L0C → L1 : 128 B/cyc  (new)"]
-    end
-```
+| path | dav-2201 | dav-3510 |
+|---|---|---|
+| L1 → L0A | 256 B/cyc | 256 B/cyc |
+| L1 → L0B | 128 B/cyc | 256 B/cyc (B path doubled) |
+| L1 → UB | — | 128 B/cyc (new) |
+| UB → L1 | — | 128 B/cyc (new) |
+| L0C → UB | — | 128 B/cyc (new) |
+| L0C → L1 | — | 128 B/cyc (new) |
 
 950 keeps the cube feed paths, adds `UB↔L1` and `L0C→UB`, and drops the old
 `GM→L0A/B` direct feeds. The vector's GM path (GM→UB via L2) is unchanged — UB
@@ -185,69 +117,42 @@ is fed from GM/L2 directly, **not** through L1.
 
 ## Vector unit: MemBase → RegBase
 
-```mermaid
-flowchart LR
-    subgraph V2201["dav-2201 — MemBase"]
-        direction TB
-        m1["operands are UB byte addresses<br/>VADD XD / XN / XM"]
-        m2["one memory-to-memory op<br/>does the whole block"]
-        m3["32 B aligned · no register programming"]
-        m4["mask = special mask register"]
-    end
-    subgraph V3510["dav-3510 — RegBase"]
-        direction TB
-        r1["operands are registers<br/>RV_VADD Vd / Vn / Vm + Pg"]
-        r2["VLD / VST move UB ↔ registers"]
-        r3["256 B per beat"]
-        r4["mask = MaskReg"]
-        r5["reg file: 256B×32 vec · 32B×8 mask<br/>4B×8 addr · 32B×4×2 unalign"]
-    end
-```
+| aspect | dav-2201 — MemBase | dav-3510 — RegBase |
+|---|---|---|
+| operands | UB byte addresses (`VADD XD/XN/XM`) | registers (`RV_VADD Vd/Vn/Vm + Pg`) |
+| data movement | one memory-to-memory op does the whole block | `VLD`/`VST` move UB ↔ registers |
+| width | 32 B aligned, no register programming | 256 B per beat |
+| mask | special mask register | `MaskReg` |
+| register file | — | 256B×32 vec · 32B×8 mask · 4B×8 addr · 32B×4×2 unalign |
 
 The architectural register file is 32 × 256 B vector registers (the PTO
 `uarch.csv` says `vreg_num=68`, i.e. 68 *physical* registers with renaming).
 
 ## UB bank structure (from report 09)
 
-```mermaid
-flowchart LR
-    subgraph B2201["dav-2201 UB — 48 banks = 3 regions × 16 groups"]
-        direction TB
-        b1["region = addr[17:16] (0,1,2)<br/>which 64-KB block"]
-        b2["group = addr[8:5] (16 values)<br/>the conflict axis"]
-        b3["bank_id = region·16 + group"]
-        b4["group period 512 B · bank 4 KB"]
-        b5["1 read + 1 write port per group"]
-    end
-    subgraph B3510["dav-3510 UB — 16 banks = 2 banks × 8 groups"]
-        direction TB
-        c1["low-bit interleave"]
-        c2["bank = addr[8] (2) · group = addr[7:5] (8)"]
-        c3["group period 256 B · bank 16 KB"]
-        c4["4 sub-banks × 8 B (gather / scatter)"]
-        c5["2 read + 1 write port per group"]
-    end
-```
+| | dav-2201 UB | dav-3510 UB |
+|---|---|---|
+| banks | 48 = 3 regions × 16 groups | 16 = 2 banks × 8 groups |
+| region | `addr[17:16]` (0,1,2) — which 64-KB block | — (low-bit interleave) |
+| group | `addr[8:5]` (16 values) — the conflict axis | `addr[7:5]` (8 values) |
+| bank | `bank_id = region·16 + group` | `addr[8]` (2 values) |
+| group period | 512 B | 256 B |
+| bank size | 4 KB | 16 KB |
+| sub-banks | — | 4 × 8 B (gather/scatter) |
+| ports | 1 read + 1 write per group | 2 read + 1 write per group |
 
 Both generations read **16 rows = 512 B per beat** across their bank groups;
 950 gets there with 8 groups × 2 banks, 910B with 16 groups × 1 bank.
 
 ## Cube unit
 
-```mermaid
-flowchart TB
-    subgraph C2201["dav-2201 — MMAD"]
-        f["cycles = 6 + cpr × (mTiles × kTiles × nTiles)<br/>mTiles=⌈m/16⌉ · kTiles=⌈k/(32/sizeof(T))⌉ · nTiles=⌈n/16⌉"]
-        f --> h["fp16 / bf16: cpr = 1<br/>1 cyc / 16×16×16 = 4096 MAC/cyc"]
-        f --> fl["fp32: cpr = 2<br/>2 cyc / 16×16×8 = 1024 MAC/cyc"]
-    end
-    subgraph C3510["dav-3510 — MMAD"]
-        d["dtypes: FP32/FP16/BF16/HiF8/FP8_E4M3/FP8_E5M2/U8/S8"]
-        d2["1 beat = 16×16×16 fp16 · 16×32×32 int8"]
-        d3["half/bf16: 4096 MAC/cyc"]
-        d4["fp32: 256 MAC/cyc (CA-model; verify on silicon)"]
-    end
-```
+| | dav-2201 — MMAD | dav-3510 — MMAD |
+|---|---|---|
+| dtypes | FP16/BF16/FP32/INT8 | FP32/FP16/BF16/HiF8/FP8_E4M3/FP8_E5M2/U8/S8 |
+| formula | `cycles = 6 + cpr·(mTiles·kTiles·nTiles)` | — |
+| half / bf16 | cpr=1 → 4096 MAC/cyc | 4096 MAC/cyc |
+| fp32 | cpr=2 → 1024 MAC/cyc | 256 MAC/cyc (CA-model; verify on silicon) |
+| 1 beat | 16×16×16 fp16 | 16×16×16 fp16 / 16×32×32 int8 |
 
 Measured cube peak (CA-model sim, ~1.8 GHz):
 
@@ -259,15 +164,11 @@ Measured cube peak (CA-model sim, ~1.8 GHz):
 
 ## SIMT (950 only)
 
-```mermaid
-flowchart TB
-    subgraph SIMT["AIV SIMT block (dav-3510)"]
-        ws["4 warp schedulers per AIV"]
-        rf["SIMT register file 128 KB"]
-        dc["SIMT DCache up to 128 KB<br/>reuses UB as cacheline (128 B granularity)"]
-    end
-    ws --> rf
-```
+| SIMT (AIV, dav-3510) | |
+|---|---|
+| warp schedulers | 4 per AIV |
+| register file | 128 KB |
+| DCache | up to 128 KB, reuses UB as cacheline (128 B granularity) |
 
 Thread → register mapping (SIMT register file is 128 KB total):
 
@@ -448,5 +349,3 @@ re-copy per report 10). Abbreviations used below:
 ./scripts/docker-run.sh python3 scripts/cube_sweep.py --arch 2201
 #   half 4096 MAC/cyc, float 1024 MAC/cyc ...
 ```
-
-Mermaid renders these diagrams in any GitHub/VS Code markdown preview.
