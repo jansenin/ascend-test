@@ -7,7 +7,9 @@
 > peak and the UB bank structure) come from our own simulator runs. Treat every
 > figure as "taken from a source file, not confirmed by measurement" until it is
 > re-checked. In particular the bandwidth and vector-timing tables are
-> especially suspect.
+> especially suspect — and even where the transcription is faithful, **we may
+> have misinterpreted what the numbers mean** (units, per-stream vs physical
+> bandwidth, per-core vs per-chip, etc.).
 
 ## What we did
 
