@@ -1,5 +1,14 @@
 # 11 — Ascend 950 (dav-3510) vs 910B (dav-2201) hardware characteristics
 
+> **⚠ This report is raw and unverified.** The numbers below were transcribed
+> directly from vendor CSVs and architecture-spec docs (`npu_arch_*.md`,
+> `isa.csv`, `uarch.csv`, `formula_params.csv`, `arch_config.hpp`, …); we have
+> **not** experimentally checked most of them. Only a handful (the measured cube
+> peak and the UB bank structure) come from our own simulator runs. Treat every
+> figure as "taken from a source file, not confirmed by measurement" until it is
+> re-checked. In particular the bandwidth and vector-timing tables are
+> especially suspect.
+
 ## What we did
 
 Consolidated everything we know about the two chips into one place: the vendor
