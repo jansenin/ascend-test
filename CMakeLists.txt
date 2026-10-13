@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-foreach(target IN ITEMS vector_add direct_mmad add_mmad_add cube_peak bank_add)
+foreach(target IN ITEMS vector_add direct_mmad add_mmad_add cube_peak bank_add bank_stride)
     add_executable(${target} apps/${target}.asc)
     target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_compile_options(${target} PRIVATE
