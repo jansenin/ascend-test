@@ -148,7 +148,7 @@ correlation, timeline, memory views). Run it as a container with this repo's
 
 ```bash
 docker run -d --name msinsight -p 9880:80 \
-  -v /home/jansenin/stuff/work/npu/out:/opt/insight/data \
+  -v "$PWD"/out:/opt/insight/data \
   swr.cn-south-1.myhuaweicloud.com/ascendhub/msinsight:26.1.0-ubuntu22.04-py3.10
 # web UI at http://localhost:9880 (a 302 to ?proxy=true on "/" is normal)
 ```

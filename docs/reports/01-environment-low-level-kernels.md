@@ -100,6 +100,6 @@ The environment provides `ASCEND_HOME_PATH`, `bisheng`, `msobjdump`, `msprof`,
 #   add_mmad_add:  Total tick: 16713
 
 # 7. Inspect the generated device ELF for one kernel.
-./scripts/docker-run.sh ./scripts/extract-elf.sh vector_add
+./scripts/docker-run.sh ./scripts/extract-elf.sh build/sim-3510/vector_add
 #   out/device-elf/vector_add/vector_add.aicore.o  (elf64-hiipu)
 ```

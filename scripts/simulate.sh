@@ -8,7 +8,7 @@ if [[ ! "${arch}" =~ ^(dav-2201|dav-3510)$ ]]; then
     printf 'Usage: %s {dav-2201|dav-3510} [target]\n' "$0" >&2
     printf '  SIMD: vector_add direct_mmad add_mmad_add arith_simd gather_simd scatter_simd\n' >&2
     printf '        arith_simd_half gather_simd_half scatter_simd_half\n' >&2
-    printf '  SIMT: simt_add arith_simt gather_simt scatter_simt (dav-3510 only)\n' >&2
+    printf '  SIMT: simt_add arith_simt gather_simt scatter_simt chained_gather_simt branch_simt (dav-3510 only)\n' >&2
     printf '        arith_simt_half gather_simt_half scatter_simt_half\n' >&2
     exit 2
 fi
@@ -31,7 +31,7 @@ traces=("${output}"/**/trace.json)
 if (( ${#traces[@]} == 0 )); then
     printf 'msprof generated no trace.json under %s\n' "${output}" >&2
     case "${target}" in
-        simt_add|arith_simt|gather_simt|scatter_simt|arith_simt_half|gather_simt_half|scatter_simt_half)
+        simt_add|arith_simt|gather_simt|scatter_simt|chained_gather_simt|branch_simt|arith_simt_half|gather_simt_half|scatter_simt_half)
             printf '%s\n' 'SIMT kernels are not profiled by msprof op simulator (empty output).' >&2
             printf '%s\n' 'Run the sim binary directly to emit core*.veccore*.instr_log.dump instead.' >&2
             ;;

@@ -67,4 +67,9 @@ done
 #   chained_gather_simd r=1  tick=8445   ... r=16 tick=99538
 #   chained_gather_simt r=1  tick=9089   ... r=16 tick=99450
 #   (fit T(k)=F+k*W: SIMD F=2311 W=6075; SIMT F=3052 W=6023)
+
+# NOTE: these r=1 ticks are from an earlier kernel build. Report 06 re-measured
+# chained_gather_simt random r=1 (sync) as tick=8989, i.e. ~100 cycles lower —
+# the exact F/W fit values are indicative only; the qualitative conclusion
+# (SIMT's gap is fixed overhead, not per-pass work) is unchanged.
 ```

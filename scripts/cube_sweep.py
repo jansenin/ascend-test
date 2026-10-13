@@ -11,6 +11,7 @@ bounds-check and silently corrupt when exceeded):
   - k*n*sizeof(T)  <= L0B     (B is static; 64KB L0B)
   - m*n*sizeof(CT) <= L0C     (128KB on dav-2201, 256KB on dav-3510)
   - (m/16)*(n/16)  >= 10      (skip too-small tiles)
+  - k % K0 == 0               (K0 = 32/sizeof(T): int8 requires k multiple of 32)
 
 FLOPS convention: 2*m*n*k FLOP per MMAD.  interval = (last MMAD issue - first
 MMAD issue) / (num_mmads - 1) cycles.  FLOPS/cycle = 2*m*n*k / interval.
@@ -40,6 +41,9 @@ IDEAL_FLOPS_PER_CYCLE = 8192.0
 # sizeof(T) for A/B, sizeof(CT) for the accumulator
 DTYPE_T = {"half": 2, "float": 4, "int8": 1, "bf16": 2}
 DTYPE_CT = {"half": 4, "float": 4, "int8": 4, "bf16": 4}
+# K fractal (K0 = 32/sizeof(T)): K must be a multiple of K0, otherwise LoadData
+# casts K/K0 to uint16_t and loads the tile incompletely -> wrong result.
+K0 = {"half": 16, "float": 8, "int8": 32, "bf16": 16}
 
 NUM_MMADS = 16
 
@@ -57,6 +61,8 @@ def enumerate_sizes(arch, dtype):
             if m * n * ct > l0c:
                 continue
             for k in range(16, 4096, 16):
+                if k % K0[dtype] != 0:
+                    continue
                 if m * k * ts > L0A_BYTES // 2:
                     continue
                 if NUM_MMADS * m * k * ts > l1:

@@ -15,7 +15,7 @@ them).
 | 6 | [SIMT shared-memory barriers are not optional](06-simt-shared-memory-sync.md) | `chained_gather_simt` (nosync variant) |
 | 7 | [Cube (MMAD) peak throughput: dtype × architecture sweep](07-cube-mmad-peak.md) | `cube_peak` |
 | 8 | [bf16 "anomaly" on 910B: a stale-data artifact](08-bf16-2201-anomaly.md) | `cube_peak` |
-| 9 | [UB memory-bank conflict: dense vs 128-byte-gap placement](09-ub-bank-conflict.md) | `bank_add` |
+| 9 | [UB memory-bank conflict: operand placement + strided access](09-ub-bank-conflict.md) | `bank_add`, `bank_stride` |
 | 10 | [Hunting for an official performance model (PTO / VfSim)](10-performance-model.md) | — |
 | 11 | [Ascend 950 vs 910B hardware characteristics](11-arch-characteristics.md) | — |
 
@@ -35,7 +35,7 @@ available.
 # cycle count) and PASS/FAIL, and dumps per-core instruction traces into CWD.
 ./scripts/docker-run.sh bash -lc 'cd /workspace && ./build/sim-3510/branch_simd'
 #   Total tick: 32170
-#   branch_simd: PASS (4096 elems, 64 iters)
+#   branch_simd: PASS (4096 elems)
 
 # Run a kernel in a clean directory so core*.instr_log.dump files don't land in
 # the repo root (they are gitignored either way).

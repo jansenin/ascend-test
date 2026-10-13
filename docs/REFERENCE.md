@@ -21,7 +21,7 @@ This file is just the numbers and one-liners.
 
 Authoritative source (per arch):
 `vendor-src/asc-devkit/docs/zh/guide/programming_guide/advanced_programming/hardware_implementation/architecture_spec/npu_arch_2201.md`
-(lines 45-50) and `.../npu_arch_3510.md` (lines 89-95).
+(lines 45-51) and `.../npu_arch_3510.md` (lines 89-95).
 
 | buffer | dav-2201 | dav-3510 | align |
 |---|---|---|---|
@@ -31,7 +31,7 @@ Authoritative source (per arch):
 | L0B | 64 KB | 64 KB | 512 B |
 | L0C | 128 KB | 256 KB | 64 B |
 | BiasTable | 1 KB | 4 KB | 64 B |
-| Fixpipe buffer | — | 4 KB | 64 B |
+| Fixpipe buffer | 2 KB | 4 KB | 64 B |
 
 > **The 256-byte reservation is dav-2201 only.** 2201 reserves 256 B in both UB
 > and L1 (`ASC_UB_SIZE = 192*1024 - 256`, `ASC_L1_SIZE = 512*1024 - 256`); 3510 has
@@ -110,6 +110,11 @@ Authoritative source:
 ## Clock
 
 - Simulator: ~1.8 GHz on both archs (per-instruction `cycles / running_time(us)`).
+- The PTO cost model uses its own static constant `kMainFrequencyHz = 1.85e9`
+  (`vendor-src/pto/costmodel/arch_config.hpp`) — this is a **different** number
+  from the ~1.8 GHz simulator clock, and is what report 11's bandwidth
+  `B/cyc → GB/s` conversions use. Don't mix them: cube-peak TFLOPS use 1.8 GHz,
+  the PTO bandwidth math uses 1.85 GHz.
 - `Total tick` from the simulator is a cycle count; frequency only maps cycles to
   wall time and never changes the tick count. Cross-arch tick gaps are NOT
   comparable (different CA-models + cycle accounting).
@@ -125,7 +130,7 @@ Authoritative source:
   `visualize_data.bin` + `core*_instr_exe.csv`.
 - `mssanitizer` / `msopprof` — NPU-hardware-only (correctly fail in the container).
 - Simulator dirs: `tools/simulator/dav_2201/lib`, `tools/simulator/dav_3510/lib`,
-  `Ascend910B1/`, `Ascend950PR_9599/`, `Ascend950PR_9589/`.
+  `Ascend910B1/`, `Ascend950PR_9599/`.
 
 ## Workflows (all through `./scripts/docker-run.sh <cmd>`)
 

@@ -43,7 +43,7 @@ compare 910B and 950 without re-reading five reports.
 | AIC — Cube | L1 512 KB → L0A/L0B 64 KB → MMAD → L0C 128 KB + BiasTable 1 KB | L1 512 KB → L0A/L0B 64 KB → MMAD → L0C 256 KB + BiasTable 4 KB |
 | AIC — Cube peak | 4096 MAC/cyc half, 1024 fp32 | 4096 MAC/cyc half + FP8/HiF8 |
 | AIV — Vector | UB 192 KB, MemBase (memory-to-memory VADD), Scalar | UB 256 KB, RegBase + SIMT, Scalar (+FP64) |
-| core ratio | 24 AIC : 48 AIV | 1 : 2 |
+| core ratio | 24 AIC : 48 AIV | 32 AIC : 64 AIV |
 
 The **L2 Cache is the unified, shared** layer (off-core, between GM and every
 core); **L1 is not unified** — it is a per-AIC buffer inside the cube that
@@ -54,7 +54,7 @@ UB (through L2, not through L1).
 
 | buffer | dav-2201 (910B) | dav-3510 (950) | change |
 |---|---|---|---|
-| UB | 192 KB (196352 B) | 256 KB (253952 B) | +33 % |
+| UB | 192 KB (196352 B) | 248 KB (253952 B) | +29 % |
 | L1 | 512 KB (523776 B) | 512 KB (524288 B) | — |
 | L0A | 64 KB | 64 KB | — |
 | L0B | 64 KB | 64 KB | — |
@@ -88,6 +88,10 @@ calibrated chip values and must not be quoted as real bandwidth:
 | GM → L2 (`gm_read_bw`) | 64 B/cyc ≈ 118 GB/s |
 | L2 → core (`l2_read_bw`) | 256 B/cyc ≈ 474 GB/s |
 | L2 cache line / hit / miss-extra | 512 B / 50 cyc / 150 cyc |
+
+(The `B/cyc → GB/s` conversions above use the PTO cost model's own
+`kMainFrequencyHz = 1.85 GHz` constant, **not** the ~1.8 GHz simulator clock —
+the two are distinct; see the Clock note in `REFERENCE.md`.)
 
 **Model 2 — the 2201 `formula` cost model** (`arch_config.hpp`,
 `kA2A3ArchConfig`), a flat per-pipe GiB/s table used by
@@ -150,10 +154,13 @@ The architectural register file is 32 × 256 B vector registers (the PTO
 | group period | 512 B | 256 B |
 | bank size | 4 KB | 16 KB |
 | sub-banks | — | 4 × 8 B (gather/scatter) |
-| ports | 1 read + 1 write per group | 2 read + 1 write per group |
+| ports | 1 read OR 1 write per group per beat | 2 reads OR 1 read + 1 write per group per beat |
 
-Both generations read **16 rows = 512 B per beat** across their bank groups;
-950 gets there with 8 groups × 2 banks, 910B with 16 groups × 1 bank.
+Both generations expose **16 UB read ports = 512 B/beat** of aggregate read
+bandwidth across their bank groups; 950 gets there with 8 groups × 2 banks, 910B
+with 16 groups × 3 banks (one bank per region, so still one row read per group
+per beat). This is the UB→register bandwidth, distinct from the vector unit's
+compute rate (950 consumes one 256-B register per beat).
 
 ## Cube unit
 
@@ -163,15 +170,15 @@ Both generations read **16 rows = 512 B per beat** across their bank groups;
 | formula | `cycles = 6 + cpr·(mTiles·kTiles·nTiles)` | — |
 | half / bf16 | cpr=1 → 4096 MAC/cyc | 4096 MAC/cyc |
 | fp32 | cpr=2 → 1024 MAC/cyc | 256 MAC/cyc (CA-model; verify on silicon) |
-| 1 beat | 16×16×16 fp16 | 16×16×16 fp16 / 16×32×32 int8 |
+| 1 beat | 16×16×16 fp16 | 16×16×16 fp16 / 16×32×16 int8 (M×K×N) |
 
 Measured cube peak (CA-model sim, ~1.8 GHz):
 
-| dtype | 910B | 950 | ideal ratio |
+| dtype | 910B | 950 | ideal ratio (950/910B) |
 |---|---|---|---|
 | half / bf16 | 4096 MAC/cyc (14.7 TFLOPS) | 4096 MAC/cyc (14.7 TFLOPS) | 1.00 |
 | int8 | 8192 (29.5 TOPS) | 8192 (29.5 TOPS) | 1.00 |
-| float | 1024 MAC/cyc (3.68 TFLOPS) | 256 MAC/cyc (0.92 TFLOPS) | 2.0 / 8.0 |
+| float | 1024 MAC/cyc (3.68 TFLOPS) | 256 MAC/cyc (0.92 TFLOPS) | 0.25 |
 
 ## SIMT (950 only)
 
@@ -253,7 +260,7 @@ re-copy per report 10). Abbreviations used below:
 |---|---|
 | card-level HBM ≈ 800 GB/s (physical, shared) | chip datasheet — **not** in `asc-devkit`/PTO source in this repo |
 | GM→UB 100.9, GM→L1 135.0, UB→GM 188.46, L1→GM 32, UB→UB 1024, L0C→GM 70, L0C→L1 128, L1→L0A 441, L1→L0B 220.5, L1→BT/FB/FILL 32 (effective per-stream cost constants, not physical links) | `ARCH:105-116` (fields listed in `ARCH:101` `kA2A3ArchConfig`) |
-| frequency 1.85 GHz | `ARCH:24` |
+| frequency 1.85 GHz (PTO cost-model constant, **not** the ~1.8 GHz simulator clock) | `ARCH:24` |
 | `kBytesPerGb` (units are GiB/s) | `ARCH:23` |
 
 ### Memory hierarchy & L2 (the shared cache)
@@ -263,7 +270,7 @@ re-copy per report 10). Abbreviations used below:
 | L2 Cache is off-core, shared by all Vector Cores, sits between GM and each core's Data Cache | `abstract_hardware_architecture.md:16` (SIMT doc) |
 | L2 Cache = off-core shared cache for GM data (all MTE GM reads/writes cached by default) | `BASIC:113`, `BASIC:206` |
 | L1 Buffer = inside AI Core, a staging area for Cube data (not unified/shared) | `BASIC:137` |
-| `gm_read_bw=64 B/cyc`, `l2_read_bw=256 B/cyc`, `l2_cache_line=512`, `l2_hit_latency=50`, `l2_miss_extra_latency=150` | `PSIM:49-50,53-54` (perf_sim cache model, pypto defaults) |
+| `gm_read_bw=64 B/cyc`, `l2_read_bw=256 B/cyc`, `l2_cache_line=512`, `l2_hit_latency=50`, `l2_miss_extra_latency=150` | `PSIM:46-50,53-54` (perf_sim cache model, pypto defaults) |
 
 ### Vector unit (MemBase → RegBase)
 
@@ -354,9 +361,10 @@ re-copy per report 10). Abbreviations used below:
 # 2201 cube formula (fp16=1 cyc/repeat, fp32=2 cyc):
 #   vendor-src/pto/costmodel/a2a3/formula_costmodel/formula_backend_compute.hpp
 
-# Measured cube peak (reproduces the "measured" table):
+# Measured cube peak (reproduces the "measured" table; cube-sweep.sh patches
+# the simulator to a single AIC and runs cube_sweep.py, which needs --dtype):
 ./scripts/docker-run.sh ./scripts/build.sh sim dav-2201
 ./scripts/docker-run.sh ./scripts/build.sh sim dav-3510
-./scripts/docker-run.sh python3 scripts/cube_sweep.py --arch 2201
+./scripts/cube-sweep.sh dav-2201 half
 #   half 4096 MAC/cyc, float 1024 MAC/cyc ...
 ```

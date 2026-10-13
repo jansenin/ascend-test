@@ -76,24 +76,24 @@ expected output shown in the `#` comments.
 # Naive SIMD: run in a clean CWD; the simulator prints "Total tick" and dumps core*.instr_log.dump here.
 mkdir -p /workspace/out/branch_simd && cd /workspace/out/branch_simd
 /workspace/build/sim-3510/branch_simd
-# branch_simd: PASS (4096 elements)
+# branch_simd: PASS (4096 elems)
 # Total tick: 32170
 
 # SIMT (native if).
 mkdir -p /workspace/out/branch_simt && cd /workspace/out/branch_simt
 /workspace/build/sim-3510/branch_simt
-# branch_simt: PASS (4096 elements)
+# branch_simt: PASS (4096 elems)
 # Total tick: 17102
 
 # Compaction SIMD, sparse (~1% rare) and dense (~12.5% rare).
 mkdir -p /workspace/out/branch_compact_sparse && cd /workspace/out/branch_compact_sparse
 /workspace/build/sim-3510/branch_simd_compact sparse
-# branch_simd_compact[sparse]: PASS (4096 elements)
+# branch_simd_compact[sparse]: PASS (4096 elems)
 # Total tick: 4762
 
 mkdir -p /workspace/out/branch_compact_dense && cd /workspace/out/branch_compact_dense
 /workspace/build/sim-3510/branch_simd_compact dense
-# branch_simd_compact[dense]: PASS (4096 elements)
+# branch_simd_compact[dense]: PASS (4096 elems)
 # Total tick: 6820
 
 # Instruction-level evidence (from the simulator dump of each run):

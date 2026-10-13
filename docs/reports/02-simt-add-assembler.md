@@ -45,8 +45,8 @@ assembler.
 
 # Extract the device object and check its machine-code size.
 ./scripts/docker-run.sh bash -lc '
-  /workspace/scripts/extract-elf.sh vector_add
-  /workspace/scripts/extract-elf.sh simt_add
+  /workspace/scripts/extract-elf.sh /workspace/build/sim-3510/vector_add
+  /workspace/scripts/extract-elf.sh /workspace/build/sim-3510/simt_add
   ls -l /workspace/out/device-elf/*/*.aicore.o'
 #   vector_add.aicore.o  simt_add.aicore.o
 

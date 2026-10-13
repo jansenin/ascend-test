@@ -18,13 +18,15 @@ The kernel is a direct `AscendC::Mmad` loop (no `Matmul` object, no `IterateAll`
   first-MMAD-issue cycle and the last-MMAD-issue cycle, and report
   `interval = (last − first) / 15` cycles per MMAD. FLOPS = `2·m·n·k / interval`.
 
-The sweep is driven by three scripts (all committed):
+The sweep is driven by several scripts (all committed):
 
 | script | purpose |
 |---|---|
 | `scripts/cube-sweep.sh <arch> <dtype>` | patch the CA-model to a single AIC, run `cube_peak` over every size, emit a CSV |
 | `scripts/cube-sweep-all.sh` | loop all 8 {arch} × {dtype} combos sequentially |
-| `scripts/cube-graph.py [--x mkn\|mn\|mk\|kn]` | plot FLOPS vs a size metric from the CSVs |
+| `scripts/cube-graph.py [--x sorted\|mkn\|mn\|mk\|kn]` | plot FLOPS vs a size metric (or rank) from the CSVs |
+| `scripts/cube_view3d.py` | interactive 3D FLOPS-vs-(m,n) surface (per-k slider) |
+| `scripts/cube_volume.py` | 3D scatter of under-utilized (m,k,n) volume |
 
 ## Why we did it
 
@@ -46,13 +48,16 @@ tiles.
 
 ## Results
 
-All 28,314 configurations `PASS` (bit-exact against a host reference). Peak throughput
-(largest valid tile per combo, single-core simulator, 1.8 GHz clock):
+28,175 configurations were swept; 20,999 `PASS` (bit-exact against a host
+reference). The 7,176 `FAIL` rows are all `int8` with `K` not a multiple of the
+int8 K-fractal (`K₀ = 32`) — a sweep-enumeration bug now fixed in
+`cube_sweep.py` (the `K` loop steps by `K₀`). Peak throughput (largest valid
+tile per combo, single-core simulator, 1.8 GHz clock):
 
 | dtype | `dav-2201` (910B) | `dav-3510` (950) | MAC/cycle | ratio vs fp16 |
 |---|---:|---:|---:|---:|
-| `half` | **14.72 TFLOPS** | **14.73 TFLOPS** | 4096 | 1.0× |
-| `bfloat16` | **14.72 TFLOPS** | **14.73 TFLOPS** | 4096 | 1.0× |
+| `half` | **14.71 TFLOPS** | **14.73 TFLOPS** | 4096 | 1.0× |
+| `bfloat16` | **14.71 TFLOPS** | **14.73 TFLOPS** | 4096 | 1.0× |
 | `int8` | **29.43 TOPS** | **29.47 TOPS** | 8192 | 2.0× |
 | `float` | **3.68 TFLOPS** | **0.92 TFLOPS** | 1024 / 256 | 0.25× / 0.0625× |
 
@@ -81,12 +86,15 @@ Our first MTE2 analysis claimed the GM→L1 A-streaming was a ~2× bottleneck ("
 
 ## Graphs
 
-`scripts/cube-graph.py` produces, for each size metric `x ∈ {mkn, mn, mk, kn}`:
+`scripts/cube-graph.py` reads the committed CSVs from `results/cube-sweep/` and
+writes its PNGs there too. For each size metric `x ∈ {mkn, mn, mk, kn}` (plus the
+default `sorted` rank view used in report 08):
 
-* `out/cube-sweep/flops_by_dtype_x-<m>.png` — 2×2 grid, one subplot per dtype, two lines
-  (2201 vs 3510) of TFLOPS vs size (log-log, ideal 14.75 TFLOPS shown as a dashed line).
-* `out/cube-sweep/flops_by_device_x-<m>.png` — 1×2 grid, one subplot per device, one line
-  per dtype.
+* `results/cube-sweep/flops_by_dtype_x-<m>.png` — 2×2 grid, one subplot per dtype,
+  two lines (2201 vs 3510) of TFLOPS vs size (log-log, ideal 14.75 TFLOPS shown as
+  a dashed line).
+* `results/cube-sweep/flops_by_device_x-<m>.png` — 1×2 grid, one subplot per device,
+  one line per dtype.
 
 `mkn` (= m·n·k, the work per MMAD) is the most useful x-axis: FLOPS rises monotonically
 with it and plateaus at the dtype peak, cleanly showing the latency-bound → throughput-bound
@@ -116,8 +124,10 @@ need to be run.
 # cube_peak M=256 K=64 N=256 : PASS (maxErr=0.00091)
 # Total tick: 28799
 
-# Build the graphs from the CSVs (host-side, needs matplotlib).
+# Build the graphs from the committed CSVs (host-side, needs matplotlib). The
+# graph/view/volume scripts read results/cube-sweep/, so after a fresh sweep copy
+# the CSVs in first: cp -r out/cube-sweep/* results/cube-sweep/.
 python3 scripts/cube-graph.py --x mkn
-# wrote out/cube-sweep/flops_by_dtype_x-mkn.png
-# wrote out/cube-sweep/flops_by_device_x-mkn.png
+# wrote results/cube-sweep/flops_by_dtype_x-mkn.png
+# wrote results/cube-sweep/flops_by_device_x-mkn.png
 ```
