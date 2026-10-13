@@ -21,6 +21,13 @@ The owner observed "950 is not as good as 910" and asked to gather both
 generations' characteristics (bandwidth, cache sizes, arithmetic capabilities)
 into a detailed comparison picture. Deferred ("not right now, just remember it").
 
+**There is now a result in `docs/reports/11-arch-characteristics.md`** — a
+tables-only comparison (buffers, data paths, UB banks, cube MMAD, SIMT, vector
+instruction timing) with a source map and a `raw / unverified / possibly
+misinterpreted` disclaimer. It was transcribed from vendor CSVs/docs, NOT
+experimentally verified; only the measured cube peak and UB bank structure come
+from our own simulator runs.
+
 Source material already located:
 - `vendor-src/asc-devkit/docs/zh/guide/programming_guide/advanced_programming/hardware_implementation/architecture_spec/npu_arch_2201.md`
 - `vendor-src/asc-devkit/docs/zh/guide/programming_guide/advanced_programming/hardware_implementation/architecture_spec/npu_arch_3510.md`
