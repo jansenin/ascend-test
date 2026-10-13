@@ -17,7 +17,7 @@ the same gradient scheme as cube_volume.py but smooth instead of binned.
 Requires an interactive matplotlib backend (TkAgg), scipy, and a display.
 
 Usage:
-    python3 scripts/cube_view3d.py [--root out/cube-sweep] [--arch 3510] [--dtype half]
+    python3 scripts/cube_view3d.py [--root results/cube-sweep] [--arch 3510] [--dtype half]
 """
 import argparse
 import csv
@@ -82,7 +82,7 @@ def pow2_ticks(vmin, vmax):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root", default="out/cube-sweep")
+    ap.add_argument("--root", default="results/cube-sweep")
     ap.add_argument("--arch", default="3510", choices=["2201", "3510"])
     ap.add_argument("--dtype", default="half", choices=["half", "float", "int8", "bf16"])
     args = ap.parse_args()

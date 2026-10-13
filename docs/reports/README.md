@@ -16,6 +16,7 @@ them).
 | 7 | [Cube (MMAD) peak throughput: dtype × architecture sweep](07-cube-mmad-peak.md) | `cube_peak` |
 | 8 | [bf16 "anomaly" on 910B: a stale-data artifact](08-bf16-2201-anomaly.md) | `cube_peak` |
 | 9 | [UB memory-bank conflict: dense vs 128-byte-gap placement](09-ub-bank-conflict.md) | `bank_add` |
+| 10 | [Hunting for an official performance model (PTO / VfSim)](10-performance-model.md) | — |
 
 ## Common workflow
 

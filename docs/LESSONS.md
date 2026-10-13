@@ -162,13 +162,16 @@ and written as terse, self-contained notes.
   RegBase programming" is therefore impossible on 3510 — the MemBase add IS
   register programming there. Only 2201 has a genuine memory-to-memory
   `VADD XD:X4=0x2000, XN:.., XM:..` whose operand fields are UB byte addresses.
-- **The CA-model simulator does not model UB bank conflicts for the vector-add
-  path.** A 16-add microbenchmark (dense 1024-elem blocks vs 128-byte gaps)
-  showed dense≈sparse on both archs (2201 54.87 vs 54.20 cyc; 3510 2.29 vs 2.61
-  cyc — dense actually *faster*) despite the dense layout placing all operands in
-  one bank group. The 2201 `VADD` is flat UB-bandwidth-bound (~224 B/cycle). To
-  observe banks in the model you'd need a strided Repeat access (8 DataBlocks in
-  one group = the doc's 8-beat case) plus a 2201 MemBase op that touches UB.
+- **The CA-model simulator DOES model UB bank behaviour; the PTO/VfSim cost
+  model does NOT — do not conflate the two.** The `sim` run-mode binary (the
+  thing that emits `core*.instr_log.dump` and produced every interval we
+  measured) genuinely reacts to operand placement: the strided sweep
+  (`srcBlkStride` 1/4/8/16 → 24/26/30/38 cyc) and the gap sweep (only a 256-B
+  offset is fast, 38.87 vs ~54 cyc) both show real bank effects. By contrast
+  the *cost model* (PTO, vendored under `vendor-src/pto/`, including the
+  open-source `VfSim` vector-unit model) treats UB as flat bandwidth: its
+  loads/stores are fixed 9-cycle latency / throughput 1, address-independent,
+  and its "bank" concept is the *physical register file*, not UB. See report 10.
 
 ## SIMD vs SIMT (corrected mental model)
 

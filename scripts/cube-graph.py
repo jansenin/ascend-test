@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Plot cube_peak MMAD sweep results (FLOPS curves).
 
-Reads the CSVs produced by scripts/cube_sweep.py from out/cube-sweep/ and
+Reads the CSVs produced by scripts/cube_sweep.py from results/cube-sweep/ and
 produces two figure families:
 
   1. per-dtype: one subplot per dtype, two lines (dav-2201 vs dav-3510).
@@ -107,8 +107,8 @@ def main():
     ap.add_argument("--x", default="sorted",
                     choices=["sorted", "mkn", "mn", "mk", "kn"],
                     help="'sorted' = FLOPS-sorted cbrt-index curve; else size-metric envelope")
-    ap.add_argument("--out", default="out/cube-sweep")
-    ap.add_argument("--root", default="out/cube-sweep", help="dir containing <arch>/<dtype>.csv")
+    ap.add_argument("--out", default="results/cube-sweep")
+    ap.add_argument("--root", default="results/cube-sweep", help="dir containing <arch>/<dtype>.csv")
     args = ap.parse_args()
 
     data = {}

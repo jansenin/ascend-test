@@ -81,7 +81,7 @@ def main():
     ap.add_argument("--dtype", required=True, choices=DTYPES)
     ap.add_argument("--threshold", type=float, default=0.95,
                     help="cube utilization threshold (fraction of peak); default 0.95")
-    ap.add_argument("--root", default="out/cube-sweep")
+    ap.add_argument("--root", default="results/cube-sweep")
     ap.add_argument("--out", default=None,
                     help="PNG output path; default <root>/<arch>/volume_<dtype>.png")
     ap.add_argument("--no-show", action="store_true",
