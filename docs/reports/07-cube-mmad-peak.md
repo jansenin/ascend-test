@@ -48,11 +48,13 @@ tiles.
 
 ## Results
 
-28,175 configurations were swept; 20,999 `PASS` (bit-exact against a host
-reference). The 7,176 `FAIL` rows are all `int8` with `K` not a multiple of the
-int8 K-fractal (`K₀ = 32`) — a sweep-enumeration bug now fixed in
-`cube_sweep.py` (the `K` loop steps by `K₀`). Peak throughput (largest valid
-tile per combo, single-core simulator, 1.8 GHz clock):
+20,999 configurations are committed — all `PASS` (bit-exact against a host
+reference). An earlier sweep had also emitted 7,176 `int8` rows with `K` not a
+multiple of the int8 K-fractal (`K₀ = 32`), which `FAIL`ed at runtime (the
+`LoadData` tile count truncates `K/K₀`); that enumeration bug is fixed in
+`cube_sweep.py` (the `K` loop steps by `K₀`) and the int8 CSVs were re-swept
+clean. Peak throughput (largest valid tile per combo, single-core simulator,
+1.8 GHz clock):
 
 | dtype | `dav-2201` (910B) | `dav-3510` (950) | MAC/cycle | ratio vs fp16 |
 |---|---:|---:|---:|---:|
