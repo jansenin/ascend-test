@@ -136,6 +136,19 @@ and written as terse, self-contained notes.
 - The CA-model simulator *can* catch some races (it caught the shared-memory
   race above), but never treat it as authoritative for real-hardware races or
   timing.
+- **The `cube-sweep.sh` single-AIC/AIV patch corrupts multi-AIV vector-kernel
+  timing.** That patch sets `config_stars.json` `num_aic=1`/`num_aiv=2` (from the
+  3510 default 32/64). It is only valid for single-unit kernels (`cube_peak`,
+  `bank_add`); for SIMD/SIMT kernels it changes the AIV count and therefore the
+  ticks — e.g. `arith_simd` reports 6418 under the patch vs 4126 default. Run
+  SIMD/SIMT kernels with the DEFAULT config, and reserve the patch for
+  single-unit cube/vector kernels (reports 03/04/06 tick numbers are
+  default-config values).
+- **Exact cycle values are not stable across rebuilds.** `bank_add`'s VADD
+  interval drifted ~0.14 cyc (54.87→54.73, 38.87→38.73) after a rebuild — ~2
+  cycles across the 15-gap span, from codegen differences. Qualitative
+  conclusions (gap 256 B de-conflicts) are unchanged; don't treat a specific
+  cycle count as an immutable constant.
 
 ## UB memory banks
 
