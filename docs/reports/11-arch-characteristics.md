@@ -38,23 +38,28 @@ compare 910B and 950 without re-reading five reports.
 
 | component | dav-2201 (910B, Atlas A2/A3) | dav-3510 (950) |
 |---|---|---|
-| Global Memory | HBM/DDR, card-level (~800 GB/s physical, shared) | same |
+| Global Memory | HBM, card-level (~800 GB/s physical, shared) | same |
 | L2 Cache | off-core, unified, shared by all cores; caches every GM read/write | same |
 | AIC — Cube | L1 512 KB → L0A/L0B 64 KB → MMAD → L0C 128 KB + BiasTable 1 KB | L1 512 KB → L0A/L0B 64 KB → MMAD → L0C 256 KB + BiasTable 4 KB |
-| AIC — Cube peak | 4096 MAC/cyc half, 1024 fp32 | 4096 MAC/cyc half + FP8/HiF8 |
-| AIV — Vector | UB 192 KB, MemBase (memory-to-memory VADD), Scalar | UB 256 KB, RegBase + SIMT, Scalar (+FP64) |
-| core ratio | 24 AIC : 48 AIV | 32 AIC : 64 AIV |
+| AIC — Cube peak | 4096 MAC/cyc half, 1024 fp32 | 4096 MAC/cyc half + FP8/HiF8 (FP8/HiF8 rate not stated) |
+| AIV — Vector | UB 192 KB (196352 B), MemBase (memory-to-memory VADD), Scalar | UB 248 KB usable (256 KB total), RegBase + SIMT, Scalar (+FP64) |
+| core ratio | 1 : 2 (24 AIC : 48 AIV) | 1 : 2 (32 AIC : 64 AIV) |
 
 The **L2 Cache is the unified, shared** layer (off-core, between GM and every
 core); **L1 is not unified** — it is a per-AIC buffer inside the cube that
 stages A/B matrix tiles (`L1→L0A/L0B`). The vector unit reads GM straight into
 UB (through L2, not through L1).
 
+> Two rows above are **not** vendor arch-spec figures: the AIC:AIV counts
+> (24:48 / 32:64) are the CA-model **simulator's** `config_stars.json` defaults
+> (the arch docs state only the 1:2 ratio — `AS2201:14`, `AS3510:7`), and the
+> ~800 GB/s HBM is a chip datasheet spec (not in any vendor source in this repo).
+
 ## Buffers, side by side
 
 | buffer | dav-2201 (910B) | dav-3510 (950) | change |
 |---|---|---|---|
-| UB | 192 KB (196352 B) | 248 KB (253952 B) | +29 % |
+| UB | 192 KB (196352 B) | 248 KB usable (256 KB total) | +29 % |
 | L1 | 512 KB (523776 B) | 512 KB (524288 B) | — |
 | L0A | 64 KB | 64 KB | — |
 | L0B | 64 KB | 64 KB | — |
@@ -113,6 +118,14 @@ bandwidths — "GM→UB 100.9 GiB/s" is a per-stream effective rate, not the
 | L1 → L0B | 220.5 |
 | L1 → BiasTable / Fixpipe / FILL | 32.0 |
 
+> The flat table above is the **legacy default** (`PTO_BW_MODE` unset). The
+> same `arch_config.hpp` also defines a **fitted Hill model**
+> (`MakeFittedHillModel`, `ARCH:264-285`) with quite different per-pipe peaks
+> (e.g. `GM_TO_L1 ≈ 28.6` vs flat 135.0, `GM_TO_UB ≈ 247.2` vs flat 100.9),
+> described in the code as a "pure on-device B3 fit", enabled via
+> `PTO_BW_MODE=fitted`. The flat numbers above are per-stream *effective* cost
+> constants, not the fitted steady-state peaks.
+
 The `L1→L0A : L1→L0B` ratio is exactly **2 : 1** (441 : 220.5), matching the
 arch-spec 256 : 128 B/cycle. The two generations' *on-core data paths* (per
 the arch spec, B/cycle):
@@ -140,9 +153,11 @@ is fed from GM/L2 directly, **not** through L1.
 | mask | special mask register | `MaskReg` |
 | register file | — | 256B×32 vec · 32B×8 mask · 4B×8 addr · 32B×4×2 unalign |
 
-The architectural register file is 32 × 256 B vector registers (the PTO
-`uarch.csv` says `vreg_num=68`; we *infer* that means 68 *physical* registers
-with renaming — the CSV only states the number 68).
+The architectural register file is 32 × 256 B vector registers; the PTO
+`uarch.csv` says `vreg_num=68`, and the VfSimulator source models these as 68
+**physical** registers with renaming — `vendor-src/VfSimulator/docs/physical_predicate_register_modeling_plan.md`:
+`RegisterBank(Vector): capacity=68, RAT, freelist, lifecycle, credits` (RAT =
+register alias table, i.e. register renaming).
 
 ## UB bank structure (from report 09)
 
@@ -161,12 +176,12 @@ with renaming — the CSV only states the number 68).
 > **derived** (report 09), not in the vendor text — the vendor only states
 > 48 banks = 16 groups × 3 banks (`BANK2201:14`).
 
-Both generations expose **16 UB read ports = 512 B/beat** (derived arithmetic:
-16 groups × 32 B/row) of aggregate read
-bandwidth across their bank groups; 950 gets there with 8 groups × 2 banks, 910B
-with 16 groups × 3 banks (one bank per region, so still one row read per group
-per beat). This is the UB→register bandwidth, distinct from the vector unit's
-compute rate (950 consumes one 256-B register per beat).
+Both generations expose an **aggregate bank-level read capacity of ≈ 512 B/beat**
+(16 concurrent 32-B row reads) — an *upper bound*, not a specified VLD/register-load
+throughput. 950 reaches it with 8 groups × 2 banks, 910B with 16 groups × 3 banks
+(one bank per region, so still one row read per group per beat). This is bank
+*capacity*, distinct from the vector unit's compute rate (950 consumes one 256-B
+register per beat, and VfSim's `VLDS` load throughput is 1 — `ISA:32`).
 
 ## Cube unit
 
@@ -192,7 +207,7 @@ Measured cube peak (CA-model sim, ~1.8 GHz):
 |---|---|
 | warp schedulers | 4 per AIV |
 | register file | 128 KB |
-| DCache | up to 128 KB, reuses UB as cacheline (128 B granularity) |
+| DCache | up to 128 KB, carved out of UB (32–128 KB, 128 B granularity) |
 
 Thread → register mapping (SIMT register file is 128 KB total):
 
@@ -285,7 +300,7 @@ re-copy per report 10). Abbreviations used below:
 | 3510 mask = MaskReg (2201 reads special mask register) | `AS3510:58` |
 | register spec: vec 256B×32, mask 32B×8, addr 4B×8, unalign 32B×4 ×2 | `AS3510:99-105` |
 | vector dtypes (3510) | `AS3510:55` |
-| 32 vector registers (arch) vs 68 physical (PTO) | `AS3510:101` + `UARCH:8` |
+| 32 vector registers (arch) vs 68 physical (PTO, w/ renaming) | `AS3510:101` + `UARCH:8` + `VfSimulator/docs/physical_predicate_register_modeling_plan.md:278` |
 
 ### UB bank structure
 
@@ -350,6 +365,7 @@ re-copy per report 10). Abbreviations used below:
 | 2201 inter-core data via Global Memory | `AS2201:14` |
 | 3510 inter-core via SSBuffer (vs GM on NPU220) | `AS3510:263` |
 | 3510 sync mode 4 (1:1 AIC:AIV) | `AS3510:309` |
+| 1:2 AIC:AIV ratio (24:48 / 32:64 are simulator `config_stars.json` defaults, not arch-spec counts) | `AS2201:14`, `AS3510:7` |
 
 ## Reproduce
 

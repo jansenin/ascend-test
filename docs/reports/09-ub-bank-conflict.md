@@ -75,11 +75,12 @@ write is beat-separated from the reads (read/write conflict never fires). A
 back in group 0 — the 32-byte interleave wraps every 512 B and a 64-KB region
 just threads all 48 banks ~42×.
 
-Why only 256 B: a repeat reads 8 consecutive DataBlocks = 8 consecutive bank
-groups (a "window" of 8 groups). Two operands' windows **overlap** unless the
-offset is 256 B (mod 512 B), which slides `rhs`'s window from groups {0..7} to
-{8..15} — disjoint from `lhs`'s {0..7}. A 128-byte gap gives {4..11}, which still
-overlaps.
+Why only 256 B — our model to explain the observed optimum (the vendor docs state
+only that a repeat is 8 DataBlocks and that "8 DataBlocks in one group → 8 beats",
+`BANK2201:125`): per beat an operand touches a window of 8 consecutive bank
+groups. Two operands' windows **overlap** unless the offset is 256 B (mod 512 B),
+which slides `rhs`'s window from groups {0..7} to {8..15} — disjoint from `lhs`'s
+{0..7}. A 128-byte gap gives {4..11}, which still overlaps.
 
 ### Result 3 — strided sweep (2201): clean, monotonic bank scaling
 

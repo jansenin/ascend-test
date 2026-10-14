@@ -41,7 +41,8 @@ tiles.
 1. **Does a hand-written MMAD loop hit the theoretical Cube peak?** The Cube issues one
    `16×16×K₀` fractal per cycle (`K₀ = 32/sizeof(T)`: half/bf16 → 16, float → 8, int8 → 32),
    so the ideal fp16 rate is `16·16·16 = 4096 MAC/cycle` = `8192 FLOP/cycle` = 14.75 TFLOPS
-   at the 1.8 GHz simulator clock.
+   at the 1.8 GHz simulator clock (see the Clock note in `REFERENCE.md` for where that
+   clock comes from; it is distinct from the PTO cost model's 1.85 GHz constant).
 2. **How does dtype scale?** Is fp16 the peak, is int8 ~2× fp16, and how much slower is fp32?
 3. **Does the architecture matter** (910B vs 950) for a single MMAD?
 4. **Where is the latency-bound region**, and how big does a tile need to be to saturate?
@@ -65,10 +66,11 @@ clean. Peak throughput (largest valid tile per combo, single-core simulator,
 
 Findings:
 
-1. **half/bf16 hit the Cube peak on both architectures** — the MMAD issue interval equals
-   the ideal `(m/16)(n/16)(k/16)` exactly (ratio 1.00). Example: 128×128×256 half on 2201
-   has interval 1026 vs ideal 1024 → 14.72 TFLOPS.
-2. **int8 is exactly 2× fp16** (8192 MAC/cycle = 29.5 TOPS), also ratio 1.00 on both archs.
+1. **half/bf16 hit the Cube peak on both architectures** — the MMAD issue interval matches
+   the ideal `(m/16)(n/16)(k/16)` within ~0.2% (ratio ≈ 1.002; the residual is the fixed
+   MMAD issue latency). Example: 128×128×256 half on 2201 has interval 1026 vs ideal 1024 →
+   14.72 TFLOPS.
+2. **int8 is 2× fp16** (8192 MAC/cycle = 29.5 TOPS), also ratio ≈ 1.002 on both archs.
 3. **fp32 is dramatically slower and architecture-dependent**: 1024 MAC/cycle on the 910B
    (3.68 TFLOPS, 4× slower than fp16) but only **256 MAC/cycle on the 950** (0.92 TFLOPS,
    16× slower than fp16). The 950's float MMAD is ~4× slower than the 910B's. This is a

@@ -37,7 +37,14 @@ The key numbers line up with our measurements:
 | model | value | measured (report 09) |
 |---|---|---|
 | 3510 `VADD` fp32 | throughput 2 cyc (`isa.csv`) | RV_VADD issue interval ~2.3–2.6 cyc |
-| 2201 `TADDS` fp32 | slope 0.0156 cyc/element ≈ 256 B/cyc | ~224 B/cyc |
+| 2201 `TADDS` fp32 | slope 0.0156 cyc/element (scalar-add *compute* cost) | ~224 B/cyc (dense 1024-float `VADD`: 12288 B / 54.87 cyc) |
+
+> The two 2201 figures are **not the same quantity**: `TADDS` is a scalar
+> elementwise-add *compute* formula (`cycles = slope·rows·cols + bias`,
+> `formula_backend_compute.hpp:121`), while the ~224 B/cyc is the memory-to-memory
+> `VADD`'s achieved *memory* throughput (2 reads + 1 write of 4096 B each, per
+> 54.87 cyc). They are listed side by side only to show both are in the same
+> ballpark, **not** as a like-for-like comparison of compute vs memory bandwidth.
 
 **But there is a distinction we got wrong at first, worth stating precisely:**
 
