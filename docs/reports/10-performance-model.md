@@ -37,7 +37,7 @@ The key numbers line up with our measurements:
 | model | value | measured (report 09) |
 |---|---|---|
 | 3510 `VADD` fp32 | throughput 2 cyc (`isa.csv`) | RV_VADD issue interval ~2.3–2.6 cyc |
-| 2201 `TADDS` fp32 | slope 0.0156 cyc/col ≈ 256 B/cyc | ~224 B/cyc |
+| 2201 `TADDS` fp32 | slope 0.0156 cyc/element ≈ 256 B/cyc | ~224 B/cyc |
 
 **But there is a distinction we got wrong at first, worth stating precisely:**
 
@@ -73,7 +73,7 @@ grep -E 'VADD|VLDS|VSTS' vendor-src/pto/costmodel/a5/VfSim/params/isa.csv
 cat vendor-src/pto/costmodel/a5/VfSim/params/uarch.csv
 
 # 2201 linear cost model (op,dtype,cols,slope,bias):
-#   TADDS,f32,32,0.0156,25        <-- slope cycles per column
+#   TADDS,f32,32,0.0156,25        <-- slope cycles per element (multiplies rows*cols)
 head -5 vendor-src/pto/costmodel/a2a3/formula_costmodel/formula_params.csv
 ```
 

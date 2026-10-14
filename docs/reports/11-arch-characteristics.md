@@ -141,7 +141,8 @@ is fed from GM/L2 directly, **not** through L1.
 | register file | — | 256B×32 vec · 32B×8 mask · 4B×8 addr · 32B×4×2 unalign |
 
 The architectural register file is 32 × 256 B vector registers (the PTO
-`uarch.csv` says `vreg_num=68`, i.e. 68 *physical* registers with renaming).
+`uarch.csv` says `vreg_num=68`; we *infer* that means 68 *physical* registers
+with renaming — the CSV only states the number 68).
 
 ## UB bank structure (from report 09)
 
@@ -156,7 +157,12 @@ The architectural register file is 32 × 256 B vector registers (the PTO
 | sub-banks | — | 4 × 8 B (gather/scatter) |
 | ports | 1 read OR 1 write per group per beat | 2 reads OR 1 read + 1 write per group per beat |
 
-Both generations expose **16 UB read ports = 512 B/beat** of aggregate read
+> The 2201 `region`/`addr[17:16]`/`bank_id = region·16 + group` decomposition is
+> **derived** (report 09), not in the vendor text — the vendor only states
+> 48 banks = 16 groups × 3 banks (`BANK2201:14`).
+
+Both generations expose **16 UB read ports = 512 B/beat** (derived arithmetic:
+16 groups × 32 B/row) of aggregate read
 bandwidth across their bank groups; 950 gets there with 8 groups × 2 banks, 910B
 with 16 groups × 3 banks (one bank per region, so still one row read per group
 per beat). This is the UB→register bandwidth, distinct from the vector unit's
@@ -170,7 +176,7 @@ compute rate (950 consumes one 256-B register per beat).
 | formula | `cycles = 6 + cpr·(mTiles·kTiles·nTiles)` | — |
 | half / bf16 | cpr=1 → 4096 MAC/cyc | 4096 MAC/cyc |
 | fp32 | cpr=2 → 1024 MAC/cyc | 256 MAC/cyc (CA-model; verify on silicon) |
-| 1 beat | 16×16×16 fp16 | 16×16×16 fp16 / 16×32×16 int8 (M×K×N) |
+| 1 beat | 16×16×16 fp16 (derived from `MAD:73-88`; the 2201 arch doc has no "1 beat" statement) | 16×16×16 fp16 / 16×32×16 int8 (M×K×N) |
 
 Measured cube peak (CA-model sim, ~1.8 GHz):
 
@@ -259,7 +265,7 @@ re-copy per report 10). Abbreviations used below:
 | value | source |
 |---|---|
 | card-level HBM ≈ 800 GB/s (physical, shared) | chip datasheet — **not** in `asc-devkit`/PTO source in this repo |
-| GM→UB 100.9, GM→L1 135.0, UB→GM 188.46, L1→GM 32, UB→UB 1024, L0C→GM 70, L0C→L1 128, L1→L0A 441, L1→L0B 220.5, L1→BT/FB/FILL 32 (effective per-stream cost constants, not physical links) | `ARCH:105-116` (fields listed in `ARCH:101` `kA2A3ArchConfig`) |
+| GM→UB 100.9, GM→L1 135.0, UB→GM 188.46, L1→GM 32, UB→UB 1024, L0C→GM 70, L0C→L1 128, L1→L0A 441, L1→L0B 220.5, L1→BT/FB/FILL 32 (effective per-stream cost constants, not physical links) | `ARCH:105-116` (field names in the `BandwidthTable` struct `ARCH:46-57`) |
 | frequency 1.85 GHz (PTO cost-model constant, **not** the ~1.8 GHz simulator clock) | `ARCH:24` |
 | `kBytesPerGb` (units are GiB/s) | `ARCH:23` |
 
@@ -301,7 +307,7 @@ re-copy per report 10). Abbreviations used below:
 | value | source |
 |---|---|
 | 3510 cube dtypes: FP32/FP16/BF16/HiF8/FP8_E4M3/FP8_E5M2/U8/S8 | `AS3510:68` |
-| 3510 1 beat = 16×16×16 fp16 / 16×32×32 int8 | `AS3510:68` |
+| 3510 1 beat = 16×16×16 fp16 / 16×32×16 int8 | `AS3510:68` |
 | 2201 cycles = 6 + cpr·(mTiles·kTiles·nTiles), kHeadCycles=6, kMTile=kNTile=16, kCyclePerRepeat = 2 (float) / 1 (else) | `MAD:73-88` |
 
 ### SIMT (3510 only)

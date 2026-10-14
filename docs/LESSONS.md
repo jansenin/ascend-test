@@ -245,6 +245,18 @@ and written as terse, self-contained notes.
   `l2_read_bw=256 B/cyc` (`pto/costmodel/perf_sim/config.hpp:49-54`). The
   flat `kA2A3ArchConfig` "GM→UB 100.9 GiB/s" is an *effective* per-pipe number
   already including L2, not an independent physical link.
+- **The PTO bandwidth table's unit is genuinely ambiguous in the vendor code.**
+  The same `kA2A3ArchConfig` numbers are consumed as **GiB/s** by
+  `EstimateBandwidthCycles` (`cce_costmodel_core.hpp:78-80` does
+  `(bytes/kBytesPerGb)/bandwidth*freq`, and `arch_config.hpp:179` labels it
+  `[GiB/s]`), but as **bytes/µs** by the default `LightweightFormula` backend
+  (`lightweight_costmodel.hpp:239-245` copies the raw value into
+  `bandwidth_bytes_per_us`, then `formula_backend_transfer.hpp:76` computes
+  `latency_us = bytes/bandwidth`). So "GM_TO_UB=100.9" means 100.9 GiB/s in one
+  backend and 100.9 B/µs (~100 MB/s) in the other — an inconsistency in the
+  vendor code, not our transcription. Our report 11 presents GiB/s (matching the
+  `EstimateBandwidthCycles` path), but the ambiguity itself is worth remembering
+  before trusting any PTO transfer-cycle estimate.
 
 ## Cube / MMAD
 
