@@ -85,6 +85,24 @@ Use `./scripts/docker-run.sh --no-gui ...` to disable display access. See
 Run `./scripts/check-environment.sh` inside the container to show installed
 compiler and analysis tools. More workflows are documented in `docs/TOOLS.md`.
 
+## Viewing cube-sweep results (committed, no sweep needed)
+
+The full Cube/MMAD sweep (all dtypes × both architectures) is committed under
+`results/cube-sweep/` — 8 CSVs plus pre-rendered PNGs — so you can inspect the
+FLOPS curves without re-running the hours-long sweep. Re-generate the graphs on
+the host (no container, no NPU; only `matplotlib` and `numpy` are needed):
+
+```bash
+python3 -m pip install numpy matplotlib
+python3 scripts/cube-graph.py              # flops_by_{dtype,device}_x-sorted.png
+python3 scripts/cube-graph.py --x mkn      # size-based FLOPS curves
+python3 scripts/cube_view3d.py --arch 3510 --dtype half   # 3D surface
+python3 scripts/cube_volume.py --arch 3510 --dtype half --no-show  # volume plot
+```
+
+To re-run the sweep itself (slow, ~hours), see `docs/reports/07-cube-mmad-peak.md`
+and `scripts/cube-sweep-all.sh`.
+
 ## Scope and limitations
 
 - CPU twin mode validates basic behavior but does not model NPU timing.
