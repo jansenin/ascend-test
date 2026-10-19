@@ -76,6 +76,16 @@ and written as terse, self-contained notes.
   cross-thread and needs a block-wide barrier. Removing barriers **FAILed** in
   the simulator ("expected X, got 0") for BOTH perm and random — see
   `docs/reports/06-simt-shared-memory-sync.md`.
+- **The converse: scatter over a permutation needs NO barrier.** A gather reads
+  *another* thread's slot (`smem[1][pos] = smem[0][index[pos]]`); a scatter
+  *writes* through the permutation (`smem[1][perm[i]] = smem[0][i]`), so each
+  thread reads back exactly the slot it wrote at the previous level — a
+  bijection makes the per-thread data flow self-contained. A chained scatter
+  over distinct permutations therefore PASSES without `asc_syncthreads()`
+  (~34% faster too), the opposite of the gather. The barrier requirement is
+  about which side of the permuted access is a *read*: read = cross-thread =
+  barrier; write = self-contained = none. See
+  `docs/reports/12-scatter-barrier-free.md`.
 - **Don't hand-optimize around a hazard the hardware already hides.** A
   software-pipelined SIMD chained gather (diagonal schedule, 4x buffers) was
   ~5% *slower* than the naive version, with an identical instruction histogram

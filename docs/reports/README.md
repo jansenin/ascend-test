@@ -18,6 +18,7 @@ them).
 | 9 | [UB memory-bank conflict: operand placement + strided access](09-ub-bank-conflict.md) | `bank_add`, `bank_stride` |
 | 10 | [Hunting for an official performance model (PTO / VfSim)](10-performance-model.md) | — |
 | 11 | [Ascend 950 vs 910B hardware characteristics](11-arch-characteristics.md) | — |
+| 12 | [Scatter is barrier-free where gather isn't](12-scatter-barrier-free.md) | `chained_scatter_simt`, `chained_scatter_simd` |
 
 ## Common workflow
 
